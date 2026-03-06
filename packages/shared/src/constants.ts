@@ -7,25 +7,22 @@ export interface KnownChainMeta {
   tokenSymbol?: string;
   logoUrl?: string;
   description?: string;
-  defillamaId?: string; // Name in DeFiLlama's /v2/chains response
+  defillamaId?: string;
 }
 
-// Key is blockchainId from Glacier
-export const KNOWN_CHAINS: Record<string, KnownChainMeta> = {
-  // DFK Chain (DeFi Kingdoms)
-  q2aTwKuyzgs8pynF7UXBZCU7DejbZbZ6EUyHr3JQzYgwNPUPi: {
+// Primary lookup: by evmChainId (more reliable than blockchainId which varies)
+export const KNOWN_CHAINS_BY_EVM_ID: Record<number, KnownChainMeta> = {
+  53935: {
     name: "DFK Chain",
     rpcUrl: "https://subnets.avax.network/defi-kingdoms/dfk-chain/rpc",
     explorerUrl: "https://subnets.avax.network/defi-kingdoms",
     websiteUrl: "https://defikingdoms.com",
     category: "gaming",
     tokenSymbol: "JEWEL",
-    description:
-      "DeFi Kingdoms Crystalvale — a blockchain game with DeFi elements",
+    description: "DeFi Kingdoms Crystalvale — a blockchain game with DeFi elements",
     defillamaId: "DFK",
   },
-  // Dexalot
-  "21Ths5Afqi5r4PaoV8r8MVGW5GRPezMT9kGMKNRqsDpKsNLHp": {
+  432204: {
     name: "Dexalot",
     rpcUrl: "https://subnets.avax.network/dexalot/mainnet/rpc",
     explorerUrl: "https://subnets.avax.network/dexalot",
@@ -35,8 +32,7 @@ export const KNOWN_CHAINS: Record<string, KnownChainMeta> = {
     description: "On-chain central limit order book DEX",
     defillamaId: "Dexalot",
   },
-  // Beam (Merit Circle / Beam gaming)
-  "2tmrrBo1Lgt1mzzvPSFt73kkQKFas5d1AP88tv9cicwoFp8BSn": {
+  4337: {
     name: "Beam",
     rpcUrl: "https://subnets.avax.network/beam/mainnet/rpc",
     explorerUrl: "https://subnets.avax.network/beam",
@@ -46,8 +42,7 @@ export const KNOWN_CHAINS: Record<string, KnownChainMeta> = {
     description: "Gaming-focused blockchain by Merit Circle",
     defillamaId: "Beam",
   },
-  // Swimmer (Crabada)
-  "2K33xS9AyP9oCDiHYKVrHe7F54h2La5D8erpTChaAhdzTF2cpe": {
+  73772: {
     name: "Swimmer Network",
     rpcUrl: "https://subnets.avax.network/swimmer/mainnet/rpc",
     explorerUrl: "https://subnets.avax.network/swimmer",
@@ -55,25 +50,6 @@ export const KNOWN_CHAINS: Record<string, KnownChainMeta> = {
     category: "gaming",
     tokenSymbol: "TUS",
     description: "Gaming subnet originally built for Crabada",
-  },
-};
-
-// Additional known chain metadata by evmChainId (for chains we know but may not have blockchainId)
-export const KNOWN_CHAINS_BY_EVM_ID: Record<number, KnownChainMeta> = {
-  53935: {
-    name: "DFK Chain",
-    category: "gaming",
-    defillamaId: "DFK",
-  },
-  432204: {
-    name: "Dexalot",
-    category: "defi",
-    defillamaId: "Dexalot",
-  },
-  4337: {
-    name: "Beam",
-    category: "gaming",
-    defillamaId: "Beam",
   },
 };
 

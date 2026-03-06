@@ -1,6 +1,6 @@
 import { eq, and, isNotNull } from "drizzle-orm";
 import { chains, chainMetrics } from "@palladium/shared/db/schema";
-import { KNOWN_CHAINS } from "@palladium/shared/constants";
+import { KNOWN_CHAINS_BY_EVM_ID } from "@palladium/shared/constants";
 import { todayDateString } from "@palladium/shared/utils";
 import { fetchAllChainsTvl } from "../../clients/defillama.js";
 import type { Database } from "@palladium/shared/db";
@@ -45,8 +45,8 @@ export async function fetchTvl(db: Database): Promise<number> {
     }
 
     // 2. Try matching by curated defillamaId
-    if (!tvl) {
-      const known = KNOWN_CHAINS[chain.blockchainId];
+    if (!tvl && chain.evmChainId) {
+      const known = KNOWN_CHAINS_BY_EVM_ID[chain.evmChainId];
       if (known?.defillamaId) {
         tvl = tvlByName.get(known.defillamaId);
       }
