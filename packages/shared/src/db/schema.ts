@@ -1,0 +1,112 @@
+import {
+  pgTable,
+  text,
+  integer,
+  bigint,
+  real,
+  boolean,
+  timestamp,
+  date,
+  serial,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
+
+// ─── chains ─────────────────────────────────────────────────────────
+export const chains = pgTable(
+  "chains",
+  {
+    id: serial("id").primaryKey(),
+    blockchainId: text("blockchain_id").notNull().unique(),
+    subnetId: text("subnet_id").notNull(),
+    vmId: text("vm_id").notNull(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    description: text("description"),
+    evmChainId: integer("evm_chain_id"),
+    rpcUrl: text("rpc_url"),
+    explorerUrl: text("explorer_url"),
+    websiteUrl: text("website_url"),
+    vmType: text("vm_type").notNull().default("unknown"),
+    category: text("category"),
+    tokenSymbol: text("token_symbol"),
+    logoUrl: text("logo_url"),
+    createBlockTimestamp: bigint("create_block_timestamp", { mode: "number" }),
+    isActive: boolean("is_active").notNull().default(true),
+    isEvm: boolean("is_evm").notNull().default(false),
+    isFeatured: boolean("is_featured").notNull().default(false),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("chains_subnet_id_idx").on(table.subnetId),
+    index("chains_evm_chain_id_idx").on(table.evmChainId),
+    uniqueIndex("chains_slug_idx").on(table.slug),
+    index("chains_vm_type_idx").on(table.vmType),
+    index("chains_enabled_idx").on(table.enabled),
+  ],
+);
+
+// ─── chain_metrics ──────────────────────────────────────────────────
+export const chainMetrics = pgTable(
+  "chain_metrics",
+  {
+    id: serial("id").primaryKey(),
+    chainId: integer("chain_id")
+      .notNull()
+      .references(() => chains.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    validatorCount: integer("validator_count"),
+    totalStakeWeight: bigint("total_stake_weight", { mode: "number" }),
+    tvlUsd: real("tvl_usd"),
+    latestBlockNumber: bigint("latest_block_number", { mode: "number" }),
+    recentTxCount: integer("recent_tx_count"),
+    avgGasPrice: real("avg_gas_price"),
+    avgBlockTime: real("avg_block_time"),
+    estimatedDailyTxs: integer("estimated_daily_txs"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("chain_metrics_chain_date_idx").on(table.chainId, table.date),
+    index("chain_metrics_date_idx").on(table.date),
+  ],
+);
+
+// ─── chain_validators ───────────────────────────────────────────────
+export const chainValidators = pgTable(
+  "chain_validators",
+  {
+    id: serial("id").primaryKey(),
+    chainId: integer("chain_id")
+      .notNull()
+      .references(() => chains.id, { onDelete: "cascade" }),
+    nodeId: text("node_id").notNull(),
+    weight: bigint("weight", { mode: "number" }),
+    isConnected: boolean("is_connected"),
+    uptimePercent: real("uptime_percent"),
+    startTime: bigint("start_time", { mode: "number" }),
+    endTime: bigint("end_time", { mode: "number" }),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("chain_validators_chain_node_idx").on(
+      table.chainId,
+      table.nodeId,
+    ),
+    index("chain_validators_chain_idx").on(table.chainId),
+  ],
+);
+
+// ─── ingestion_log ──────────────────────────────────────────────────
+export const ingestionLog = pgTable("ingestion_log", {
+  id: serial("id").primaryKey(),
+  jobName: text("job_name").notNull(),
+  status: text("status").notNull(),
+  chainsProcessed: integer("chains_processed"),
+  errorMessage: text("error_message"),
+  durationMs: integer("duration_ms"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
