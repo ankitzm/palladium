@@ -5,6 +5,11 @@ import { todayDateString } from "@palladium/shared/utils";
 import { fetchAllChainsTvl } from "../../clients/defillama.js";
 import type { Database } from "@palladium/shared/db";
 
+// Common non-Avalanche EVM chain IDs that could cause false TVL matches
+const SKIP_TVL_CHAIN_IDS = new Set([
+  1, 5, 10, 56, 97, 100, 137, 250, 324, 1101, 8453, 42161, 43114, 59144, 534352,
+]);
+
 export async function fetchTvl(db: Database): Promise<number> {
   console.log("[fetch-tvl] Fetching TVL data from DeFiLlama...");
   const llamaChains = await fetchAllChainsTvl();
@@ -39,8 +44,8 @@ export async function fetchTvl(db: Database): Promise<number> {
   for (const chain of enabledChains) {
     let tvl: number | undefined;
 
-    // 1. Try matching by evmChainId
-    if (chain.evmChainId) {
+    // 1. Try matching by evmChainId (skip well-known non-Avalanche IDs)
+    if (chain.evmChainId && !SKIP_TVL_CHAIN_IDS.has(chain.evmChainId)) {
       tvl = tvlByChainId.get(chain.evmChainId);
     }
 
