@@ -28,7 +28,8 @@ export async function discoverChains(db: Database): Promise<number> {
     const known = KNOWN_CHAINS[gc.blockchainId];
 
     // Generate deduplicated slug
-    const baseSlug = slugify(known?.name ?? gc.blockchainName || `chain-${gc.blockchainId.slice(0, 8)}`);
+    const chainName = known?.name ?? (gc.blockchainName || `chain-${gc.blockchainId.slice(0, 8)}`);
+    const baseSlug = slugify(chainName);
     const slug = dedupeSlug(baseSlug, usedSlugs);
     usedSlugs.add(slug);
 
@@ -36,7 +37,7 @@ export async function discoverChains(db: Database): Promise<number> {
       blockchainId: gc.blockchainId,
       subnetId: gc.subnetId,
       vmId: gc.vmId,
-      name: known?.name ?? gc.blockchainName || `Unknown (${gc.blockchainId.slice(0, 8)})`,
+      name: known?.name ?? (gc.blockchainName || `Unknown (${gc.blockchainId.slice(0, 8)})`),
       slug,
       description: known?.description ?? null,
       evmChainId: gc.evmChainId ?? null,

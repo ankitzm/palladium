@@ -23,7 +23,7 @@ export const chains = pgTable(
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
     description: text("description"),
-    evmChainId: integer("evm_chain_id"),
+    evmChainId: bigint("evm_chain_id", { mode: "number" }),
     rpcUrl: text("rpc_url"),
     explorerUrl: text("explorer_url"),
     websiteUrl: text("website_url"),
