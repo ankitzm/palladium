@@ -1,0 +1,100 @@
+# PALLADIUM — Avalanche L1 Discovery Dashboard
+
+## Project Overview
+
+Palladium is an open-source Avalanche L1 chain explorer. It indexes every Avalanche L1, tracks health metrics (validators, TVL, transactions, gas), and serves a public dashboard + REST API. Think "L1Beat for Avalanche."
+
+## Architecture
+
+pnpm monorepo:
+- `apps/server/` — Hono backend API (port 8787)
+- `apps/web/` — Next.js 16 frontend (port 3000)
+- `packages/shared/` — DB schema (Drizzle), TypeScript types, constants, utils
+- `scripts/` — Manual DB operation scripts (ingestion, backfill, toggle, delete, inspect)
+
+## Tech Stack
+
+- **Backend**: Hono + @hono/node-server, TypeScript, Drizzle ORM, Neon PostgreSQL
+- **Frontend**: Next.js 16 (App Router, Turbopack), Tailwind CSS v4, Recharts
+- **Database**: Neon PostgreSQL via `@neondatabase/serverless`
+- **Package manager**: pnpm with workspace protocol
+
+## Database Schema
+
+4 tables in `packages/shared/src/db/schema.ts`:
+- `chains` — L1 chain metadata (blockchainId, subnetId, slug, evmChainId, vmType, enabled flag)
+- `chain_metrics` — Daily time-series (unique on chain_id+date): validatorCount, tvlUsd, estimatedDailyTxs, avgGasPrice, avgBlockTime
+- `chain_validators` — Per-validator records (unique on chain_id+node_id)
+- `ingestion_log` — Job execution audit
+
+Key: `evmChainId` is bigint (some Avalanche L1s exceed INT32_MAX). Metrics are date-keyed — queries JOIN on today's date.
+
+## API Routes (apps/server/src/routes/)
+
+- `GET /api/overview` — Aggregate stats + top 10 leaderboards by TVL and daily txs
+- `GET /api/chains` — Paginated chain list. Params: sort (name|tvl|validators|daily_txs), order, vm_type, category, search, limit (max 500), offset
+- `GET /api/chains/:slug` — Chain detail with validators list
+- `GET /api/chains/:slug/metrics?days=30` — Time-series metrics (max 90d)
+- `POST /api/ingest` — Trigger ingestion (Bearer CRON_SECRET)
+- `GET /health` — Health check
+
+## Ingestion Pipeline (apps/server/src/services/ingestion/)
+
+4-step sequential pipeline (~60s):
+1. `discover-chains` — Glacier API → upsert chains (384 L1s)
+2. `fetch-validators` — P-Chain RPC per subnet → validator counts (concurrency=10)
+3. `fetch-tvl` — DeFiLlama → TVL matching by evmChainId (6 chains)
+4. `fetch-evm-metrics` — EVM RPCs → block time, gas, tx estimates (4-5 chains)
+
+## Frontend (apps/web/src/app/)
+
+- `/` — Overview page (server component, `force-dynamic`): stat cards + leaderboards
+- `/chains` — Client-side directory: search, VM type filter, sortable table
+- `/chains/[slug]` — Detail page: metric cards, Recharts area chart, technical details
+- `/api-docs` — REST API documentation
+
+Theme: Dark + Avalanche Red (#e84142). Tailwind v4 with `@theme inline` CSS variables.
+
+## External Data Sources
+
+- **Glacier API** (`glacier-api.avax.network`) — Chain registry
+- **P-Chain** (`api.avax.network/ext/bc/P`) — Validators via platform.getCurrentValidators
+- **DeFiLlama** (`api.llama.fi/v2/chains`) — TVL
+- **EVM RPCs** (per-chain rpcUrl) — Blocks, gas, transactions
+
+## Code Conventions
+
+- TypeScript strict mode, no `any`
+- Drizzle ORM for all queries — no raw SQL in app code
+- Hono routes: `c.json(...)` responses, CORS enabled
+- Next.js App Router, server components by default, `"use client"` only for interactive (charts, table)
+- Tailwind utility classes only, no CSS modules
+- Workspace imports: `@palladium/shared/db`, `@palladium/shared/types`, `@palladium/shared/constants`, `@palladium/shared/utils`
+- Shared package exports raw .ts files (no build step)
+
+## Key Constants (packages/shared/src/constants.ts)
+
+- `KNOWN_CHAINS_BY_EVM_ID` — Curated metadata for DFK (53935), Dexalot (432204), Beam (4337), Swimmer (73772)
+- `EXCLUDED_EVM_CHAIN_IDS` / `EXCLUDED_BLOCKCHAIN_NAMES` — Chains to skip during ingestion
+
+## Commands
+
+```bash
+pnpm dev              # Both servers in parallel
+pnpm seed             # Run full ingestion pipeline
+pnpm build            # Production build (shared → server + web)
+pnpm db:push          # Push schema to Neon
+```
+
+## Environment
+
+Root `.env`: DATABASE_URL, CRON_SECRET, PORT
+Frontend `apps/web/.env.local`: NEXT_PUBLIC_API_URL
+
+## When Making Changes
+
+- Editing schema? Update `packages/shared/src/db/schema.ts`, then `pnpm db:push`
+- Adding an API route? Create in `apps/server/src/routes/`, mount in `apps/server/src/index.ts`
+- Adding a page? Create in `apps/web/src/app/`, use `@/lib/api.ts` for data fetching
+- Adding a new data source? Create client in `apps/server/src/clients/`, add ingestion step in `services/ingestion/`
+- Adding chain metadata? Update `KNOWN_CHAINS_BY_EVM_ID` in `packages/shared/src/constants.ts`
