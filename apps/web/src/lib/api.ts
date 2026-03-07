@@ -3,7 +3,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787";
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
-    next: { revalidate: 60 },
+    next: { revalidate: 30 },
   });
   if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
   return res.json();

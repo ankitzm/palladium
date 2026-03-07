@@ -16,7 +16,7 @@ export function chainsRoutes(db: Database) {
       category: query.category,
       search: query.search,
       enabled: query.enabled === "false" ? false : true,
-      limit: Math.min(parseInt(query.limit ?? "50"), 200),
+      limit: Math.min(parseInt(query.limit ?? "50"), 500),
       offset: parseInt(query.offset ?? "0"),
     });
 
