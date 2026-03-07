@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { getOverview } from "@/lib/api";
 import { formatUsd, formatNumber, vmTypeBadge, categoryBadge } from "@/lib/format";
