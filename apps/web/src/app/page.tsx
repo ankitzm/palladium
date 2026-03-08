@@ -68,9 +68,18 @@ function ChainRow({ chain, metric }: { chain: Chain; metric: "tvl" | "txs" }) {
         ) : (
           <>
             <p className="font-semibold text-foreground">
-              {formatNumber(m?.estimatedDailyTxs)}
+              {m?.actualDailyTxs != null
+                ? formatNumber(m.actualDailyTxs)
+                : formatNumber(m?.estimatedDailyTxs)}
             </p>
-            <p className="text-xs text-muted">daily txs</p>
+            <p className="text-xs text-muted">
+              {m?.actualDailyTxs != null ? "txs / day" : "est. daily txs"}
+            </p>
+            {m?.activeAddresses != null && (
+              <p className="text-[10px] text-muted mt-0.5">
+                {formatNumber(m.activeAddresses)} active users
+              </p>
+            )}
           </>
         )}
       </div>
@@ -138,7 +147,7 @@ export default async function OverviewPage() {
           </div>
           <div className="divide-y divide-border/50">
             {data.topChainsByTxs
-              .filter((c) => (c.latestMetrics?.estimatedDailyTxs ?? 0) > 0)
+              .filter((c) => Math.max(c.latestMetrics?.actualDailyTxs ?? 0, c.latestMetrics?.estimatedDailyTxs ?? 0) > 0)
               .slice(0, 8)
               .map((chain) => (
                 <ChainRow key={chain.id} chain={chain} metric="txs" />

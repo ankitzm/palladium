@@ -62,8 +62,8 @@ export default function ChainsPage() {
           v2 = m2?.validatorCount ?? 0;
           break;
         case "daily_txs":
-          v1 = m1?.estimatedDailyTxs ?? 0;
-          v2 = m2?.estimatedDailyTxs ?? 0;
+          v1 = Math.max(m1?.actualDailyTxs ?? 0, m1?.estimatedDailyTxs ?? 0);
+          v2 = Math.max(m2?.actualDailyTxs ?? 0, m2?.estimatedDailyTxs ?? 0);
           break;
         default:
           v1 = 0;
@@ -222,7 +222,18 @@ export default function ChainsPage() {
                       {formatUsd(m?.tvlUsd)}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-foreground hidden sm:table-cell">
-                      {formatNumber(m?.estimatedDailyTxs)}
+                      {m?.actualDailyTxs != null ? (
+                        <div>
+                          <span>{formatNumber(m.actualDailyTxs)}</span>
+                          {m.tps != null && (
+                            <span className="text-[10px] text-muted ml-1">
+                              ({m.tps.toFixed(2)} TPS)
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        formatNumber(m?.estimatedDailyTxs)
+                      )}
                     </td>
                   </tr>
                 );

@@ -67,8 +67,8 @@ export async function listChains(
             : asc(sql`COALESCE(${chainMetrics.validatorCount}, 0)`)
           : sort === "daily_txs"
             ? order === "desc"
-              ? desc(sql`COALESCE(${chainMetrics.estimatedDailyTxs}, 0)`)
-              : asc(sql`COALESCE(${chainMetrics.estimatedDailyTxs}, 0)`)
+              ? desc(sql`COALESCE(${chainMetrics.actualDailyTxs}, ${chainMetrics.estimatedDailyTxs}, 0)`)
+              : asc(sql`COALESCE(${chainMetrics.actualDailyTxs}, ${chainMetrics.estimatedDailyTxs}, 0)`)
             : order === "desc"
               ? desc(chains.name)
               : asc(chains.name),
@@ -88,16 +88,19 @@ export async function listChains(
     ...row.chain,
     latestMetrics: row.metric
       ? {
-          date: row.metric.date,
-          validatorCount: row.metric.validatorCount,
-          totalStakeWeight: row.metric.totalStakeWeight,
-          tvlUsd: row.metric.tvlUsd,
-          latestBlockNumber: row.metric.latestBlockNumber,
-          recentTxCount: row.metric.recentTxCount,
-          avgGasPrice: row.metric.avgGasPrice,
-          avgBlockTime: row.metric.avgBlockTime,
-          estimatedDailyTxs: row.metric.estimatedDailyTxs,
-        }
+        date: row.metric.date,
+        validatorCount: row.metric.validatorCount,
+        totalStakeWeight: row.metric.totalStakeWeight,
+        tvlUsd: row.metric.tvlUsd,
+        latestBlockNumber: row.metric.latestBlockNumber,
+        recentTxCount: row.metric.recentTxCount,
+        avgGasPrice: row.metric.avgGasPrice,
+        avgBlockTime: row.metric.avgBlockTime,
+        estimatedDailyTxs: row.metric.estimatedDailyTxs,
+        actualDailyTxs: row.metric.actualDailyTxs,
+        activeAddresses: row.metric.activeAddresses,
+        tps: row.metric.tps,
+      }
       : null,
   }));
 
@@ -143,16 +146,19 @@ export async function getChainBySlug(
     ...row.chain,
     latestMetrics: row.metric
       ? {
-          date: row.metric.date,
-          validatorCount: row.metric.validatorCount,
-          totalStakeWeight: row.metric.totalStakeWeight,
-          tvlUsd: row.metric.tvlUsd,
-          latestBlockNumber: row.metric.latestBlockNumber,
-          recentTxCount: row.metric.recentTxCount,
-          avgGasPrice: row.metric.avgGasPrice,
-          avgBlockTime: row.metric.avgBlockTime,
-          estimatedDailyTxs: row.metric.estimatedDailyTxs,
-        }
+        date: row.metric.date,
+        validatorCount: row.metric.validatorCount,
+        totalStakeWeight: row.metric.totalStakeWeight,
+        tvlUsd: row.metric.tvlUsd,
+        latestBlockNumber: row.metric.latestBlockNumber,
+        recentTxCount: row.metric.recentTxCount,
+        avgGasPrice: row.metric.avgGasPrice,
+        avgBlockTime: row.metric.avgBlockTime,
+        estimatedDailyTxs: row.metric.estimatedDailyTxs,
+        actualDailyTxs: row.metric.actualDailyTxs,
+        activeAddresses: row.metric.activeAddresses,
+        tps: row.metric.tps,
+      }
       : null,
     validators,
   };
