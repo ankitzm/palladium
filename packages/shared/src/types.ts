@@ -89,9 +89,6 @@ export interface ChainWithMetrics {
     avgGasPrice: number | null;
     avgBlockTime: number | null;
     estimatedDailyTxs: number | null;
-    actualDailyTxs: number | null;
-    activeAddresses: number | null;
-    tps: number | null;
   } | null;
 }
 

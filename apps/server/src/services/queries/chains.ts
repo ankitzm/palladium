@@ -67,8 +67,8 @@ export async function listChains(
             : asc(sql`COALESCE(${chainMetrics.validatorCount}, 0)`)
           : sort === "daily_txs"
             ? order === "desc"
-              ? desc(sql`COALESCE(${chainMetrics.actualDailyTxs}, ${chainMetrics.estimatedDailyTxs}, 0)`)
-              : asc(sql`COALESCE(${chainMetrics.actualDailyTxs}, ${chainMetrics.estimatedDailyTxs}, 0)`)
+              ? desc(sql`COALESCE(${chainMetrics.estimatedDailyTxs}, 0)`)
+              : asc(sql`COALESCE(${chainMetrics.estimatedDailyTxs}, 0)`)
             : order === "desc"
               ? desc(chains.name)
               : asc(chains.name),
@@ -97,9 +97,6 @@ export async function listChains(
         avgGasPrice: row.metric.avgGasPrice,
         avgBlockTime: row.metric.avgBlockTime,
         estimatedDailyTxs: row.metric.estimatedDailyTxs,
-        actualDailyTxs: row.metric.actualDailyTxs,
-        activeAddresses: row.metric.activeAddresses,
-        tps: row.metric.tps,
       }
       : null,
   }));
@@ -155,9 +152,6 @@ export async function getChainBySlug(
         avgGasPrice: row.metric.avgGasPrice,
         avgBlockTime: row.metric.avgBlockTime,
         estimatedDailyTxs: row.metric.estimatedDailyTxs,
-        actualDailyTxs: row.metric.actualDailyTxs,
-        activeAddresses: row.metric.activeAddresses,
-        tps: row.metric.tps,
       }
       : null,
     validators,
