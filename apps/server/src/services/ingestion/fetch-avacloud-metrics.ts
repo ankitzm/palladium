@@ -19,16 +19,8 @@ async function processChain(
             fetchChainMetric(chain.evmChainId, "activeAddresses"),
         ]);
 
-        // get the reading with highest matching timestamp, or closest to today
-        // results are usually returned in descending order. We just take the first one 
-        // or we could sort by timestamp descending to be safe.
-
-        // sorting by timestamp desc so latest is index 0
-        const txCountSorted = txCountRes.results.sort((a, b) => b.timestamp - a.timestamp);
-        const activeAddrsSorted = activeAddrsRes.results.sort((a, b) => b.timestamp - a.timestamp);
-
-        const actualDailyTxs = txCountSorted.length > 0 ? txCountSorted[0].value : null;
-        const activeAddresses = activeAddrsSorted.length > 0 ? activeAddrsSorted[0].value : null;
+        const actualDailyTxs = typeof txCountRes.result?.lastDay === "number" ? txCountRes.result.lastDay : null;
+        const activeAddresses = typeof activeAddrsRes.result?.lastDay === "number" ? activeAddrsRes.result.lastDay : null;
 
         // calculate TPS based on daily txs
         const tps = actualDailyTxs !== null ? actualDailyTxs / 86400 : null;
