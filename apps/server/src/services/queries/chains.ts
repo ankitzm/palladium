@@ -97,6 +97,12 @@ export async function listChains(
         avgGasPrice: row.metric.avgGasPrice,
         avgBlockTime: row.metric.avgBlockTime,
         estimatedDailyTxs: row.metric.estimatedDailyTxs,
+        actualDailyTxs: row.metric.actualDailyTxs,
+        activeAddresses: row.metric.activeAddresses,
+        cumulativeAddresses: row.metric.cumulativeAddresses,
+        tps: row.metric.tps,
+        peakTps: row.metric.peakTps,
+        avgGasConsumption: row.metric.avgGasConsumption,
       }
       : null,
   }));
@@ -152,6 +158,12 @@ export async function getChainBySlug(
         avgGasPrice: row.metric.avgGasPrice,
         avgBlockTime: row.metric.avgBlockTime,
         estimatedDailyTxs: row.metric.estimatedDailyTxs,
+        actualDailyTxs: row.metric.actualDailyTxs,
+        activeAddresses: row.metric.activeAddresses,
+        cumulativeAddresses: row.metric.cumulativeAddresses,
+        tps: row.metric.tps,
+        peakTps: row.metric.peakTps,
+        avgGasConsumption: row.metric.avgGasConsumption,
       }
       : null,
     validators,

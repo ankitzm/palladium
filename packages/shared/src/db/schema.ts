@@ -57,14 +57,29 @@ export const chainMetrics = pgTable(
       .notNull()
       .references(() => chains.id, { onDelete: "cascade" }),
     date: date("date").notNull(),
+
+    // Validator data (from P-Chain)
     validatorCount: integer("validator_count"),
     totalStakeWeight: bigint("total_stake_weight", { mode: "number" }),
+
+    // TVL (from DeFiLlama)
     tvlUsd: real("tvl_usd"),
+
+    // EVM RPC sampled data (legacy/fallback)
     latestBlockNumber: bigint("latest_block_number", { mode: "number" }),
     recentTxCount: integer("recent_tx_count"),
     avgGasPrice: real("avg_gas_price"),
     avgBlockTime: real("avg_block_time"),
     estimatedDailyTxs: integer("estimated_daily_txs"),
+
+    // AvaCloud Metrics API (accurate, pre-aggregated)
+    actualDailyTxs: integer("actual_daily_txs"),
+    activeAddresses: integer("active_addresses"),
+    cumulativeAddresses: integer("cumulative_addresses"),
+    tps: real("tps"),
+    peakTps: real("peak_tps"),
+    avgGasConsumption: real("avg_gas_consumption"),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -88,6 +103,9 @@ export const chainValidators = pgTable(
     uptimePercent: real("uptime_percent"),
     startTime: bigint("start_time", { mode: "number" }),
     endTime: bigint("end_time", { mode: "number" }),
+    delegationFee: real("delegation_fee"),
+    delegatorCount: integer("delegator_count"),
+    delegatorWeight: bigint("delegator_weight", { mode: "number" }),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
