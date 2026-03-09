@@ -114,7 +114,17 @@ export async function getChainBySlug(
   db: Database,
   slug: string,
 ): Promise<
-  (ChainWithMetrics & { validators: { nodeId: string; weight: number | null }[] }) | null
+  (ChainWithMetrics & { validators: {
+    nodeId: string;
+    weight: number | null;
+    isConnected: boolean | null;
+    uptimePercent: number | null;
+    startTime: number | null;
+    endTime: number | null;
+    delegationFee: number | null;
+    delegatorCount: number | null;
+    delegatorWeight: number | null;
+  }[] }) | null
 > {
   const today = new Date().toISOString().split("T")[0];
 
@@ -135,11 +145,18 @@ export async function getChainBySlug(
 
   const row = rows[0];
 
-  // Get validators
+  // Get validators with full details
   const validators = await db
     .select({
       nodeId: chainValidators.nodeId,
       weight: chainValidators.weight,
+      isConnected: chainValidators.isConnected,
+      uptimePercent: chainValidators.uptimePercent,
+      startTime: chainValidators.startTime,
+      endTime: chainValidators.endTime,
+      delegationFee: chainValidators.delegationFee,
+      delegatorCount: chainValidators.delegatorCount,
+      delegatorWeight: chainValidators.delegatorWeight,
     })
     .from(chainValidators)
     .where(eq(chainValidators.chainId, row.chain.id))

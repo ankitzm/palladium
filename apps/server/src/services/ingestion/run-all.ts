@@ -3,6 +3,7 @@ import { discoverChains } from "./discover-chains.js";
 import { fetchValidators } from "./fetch-validators.js";
 import { fetchTvl } from "./fetch-tvl.js";
 import { fetchEvmMetrics } from "./fetch-evm-metrics.js";
+import { fetchAvaCloudMetrics } from "./fetch-avacloud-metrics.js";
 import type { Database } from "@palladium/shared/db";
 
 interface JobResult {
@@ -64,6 +65,7 @@ export async function runAllIngestion(db: Database): Promise<JobResult[]> {
   results.push(await runJob(db, "fetch-validators", fetchValidators));
   results.push(await runJob(db, "fetch-tvl", fetchTvl));
   results.push(await runJob(db, "fetch-evm-metrics", fetchEvmMetrics));
+  results.push(await runJob(db, "fetch-avacloud-metrics", fetchAvaCloudMetrics));
 
   const totalMs = Date.now() - overallStart;
   console.log(`\n✅ Full ingestion completed in ${totalMs}ms`);
