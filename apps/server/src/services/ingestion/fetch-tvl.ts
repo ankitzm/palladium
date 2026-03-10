@@ -28,7 +28,7 @@ export async function fetchTvl(db: Database): Promise<number> {
     }
   }
 
-  // Get enabled chains with evmChainId
+  // Get active chains with evmChainId
   const enabledChains = await db
     .select({
       id: chains.id,
@@ -36,7 +36,7 @@ export async function fetchTvl(db: Database): Promise<number> {
       evmChainId: chains.evmChainId,
     })
     .from(chains)
-    .where(and(eq(chains.enabled, true), isNotNull(chains.evmChainId)));
+    .where(and(eq(chains.isActive, true), isNotNull(chains.evmChainId)));
 
   const today = todayDateString();
   let matched = 0;

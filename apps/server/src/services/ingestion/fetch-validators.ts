@@ -1,9 +1,8 @@
-import { eq, and, notInArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { chains, chainValidators, chainMetrics } from "@palladium/shared/db/schema";
 import { PRIMARY_NETWORK_SUBNET_ID, todayDateString } from "@palladium/shared/utils";
 import { fetchCurrentValidators } from "../../clients/pchain.js";
 import type { Database } from "@palladium/shared/db";
-import type { PChainValidator } from "@palladium/shared/types";
 
 const CONCURRENCY = 10;
 
@@ -15,14 +14,13 @@ async function processSubnet(
 ): Promise<number> {
   const validators = await fetchCurrentValidators(subnetId);
 
-  for (const chainId of chainIds) {
-    // Just update the metrics count — skip individual validator upserts for speed
-    // (we can add per-validator tracking in a future pass)
-    const totalWeight = validators.reduce(
-      (sum, v) => sum + (v.weight ? parseInt(v.weight) : 0),
-      0,
-    );
+  const totalWeight = validators.reduce(
+    (sum, v) => sum + (v.weight ? parseInt(v.weight) : 0),
+    0,
+  );
 
+  for (const chainId of chainIds) {
+    // Update aggregate metrics
     await db
       .insert(chainMetrics)
       .values({
@@ -40,6 +38,39 @@ async function processSubnet(
           updatedAt: new Date(),
         },
       });
+
+    // Upsert individual validator records with full P-Chain data
+    for (const v of validators) {
+      await db
+        .insert(chainValidators)
+        .values({
+          chainId,
+          nodeId: v.nodeID,
+          weight: v.weight ? parseInt(v.weight) : null,
+          isConnected: v.connected ?? null,
+          uptimePercent: v.uptime ? parseFloat(v.uptime) : null,
+          startTime: v.startTime ? parseInt(v.startTime) : null,
+          endTime: v.endTime ? parseInt(v.endTime) : null,
+          delegationFee: v.delegationFee ? parseFloat(v.delegationFee) : null,
+          delegatorCount: v.delegatorCount ? parseInt(v.delegatorCount) : null,
+          delegatorWeight: v.delegatorWeight ? parseInt(v.delegatorWeight) : null,
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: [chainValidators.chainId, chainValidators.nodeId],
+          set: {
+            weight: v.weight ? parseInt(v.weight) : null,
+            isConnected: v.connected ?? null,
+            uptimePercent: v.uptime ? parseFloat(v.uptime) : null,
+            startTime: v.startTime ? parseInt(v.startTime) : null,
+            endTime: v.endTime ? parseInt(v.endTime) : null,
+            delegationFee: v.delegationFee ? parseFloat(v.delegationFee) : null,
+            delegatorCount: v.delegatorCount ? parseInt(v.delegatorCount) : null,
+            delegatorWeight: v.delegatorWeight ? parseInt(v.delegatorWeight) : null,
+            updatedAt: new Date(),
+          },
+        });
+    }
   }
 
   return chainIds.length;
@@ -51,7 +82,7 @@ export async function fetchValidators(db: Database): Promise<number> {
   const chainRows = await db
     .select({ id: chains.id, subnetId: chains.subnetId })
     .from(chains)
-    .where(eq(chains.enabled, true));
+    .where(eq(chains.isActive, true));
 
   // Group chains by subnet
   const subnetToChains = new Map<string, number[]>();
@@ -81,7 +112,6 @@ export async function fetchValidators(db: Database): Promise<number> {
       if (r.status === "fulfilled") totalProcessed += r.value;
     }
 
-    // Log progress every batch
     if ((i + CONCURRENCY) % 50 === 0 || i + CONCURRENCY >= entries.length) {
       console.log(`[fetch-validators] Progress: ${Math.min(i + CONCURRENCY, entries.length)}/${entries.length} subnets`);
     }

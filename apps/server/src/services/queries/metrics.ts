@@ -45,6 +45,12 @@ export async function getMetricsHistory(
       avgGasPrice: m.avgGasPrice,
       avgBlockTime: m.avgBlockTime,
       estimatedDailyTxs: m.estimatedDailyTxs,
+      actualDailyTxs: m.actualDailyTxs,
+      activeAddresses: m.activeAddresses,
+      cumulativeAddresses: m.cumulativeAddresses,
+      tps: m.tps,
+      peakTps: m.peakTps,
+      avgGasConsumption: m.avgGasConsumption,
     })),
   };
 }

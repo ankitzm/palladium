@@ -82,7 +82,7 @@ export async function fetchEvmMetrics(db: Database): Promise<number> {
     .from(chains)
     .where(
       and(
-        eq(chains.enabled, true),
+        eq(chains.isActive, true),
         eq(chains.isEvm, true),
         isNotNull(chains.rpcUrl),
       ),

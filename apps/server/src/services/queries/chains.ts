@@ -88,16 +88,22 @@ export async function listChains(
     ...row.chain,
     latestMetrics: row.metric
       ? {
-          date: row.metric.date,
-          validatorCount: row.metric.validatorCount,
-          totalStakeWeight: row.metric.totalStakeWeight,
-          tvlUsd: row.metric.tvlUsd,
-          latestBlockNumber: row.metric.latestBlockNumber,
-          recentTxCount: row.metric.recentTxCount,
-          avgGasPrice: row.metric.avgGasPrice,
-          avgBlockTime: row.metric.avgBlockTime,
-          estimatedDailyTxs: row.metric.estimatedDailyTxs,
-        }
+        date: row.metric.date,
+        validatorCount: row.metric.validatorCount,
+        totalStakeWeight: row.metric.totalStakeWeight,
+        tvlUsd: row.metric.tvlUsd,
+        latestBlockNumber: row.metric.latestBlockNumber,
+        recentTxCount: row.metric.recentTxCount,
+        avgGasPrice: row.metric.avgGasPrice,
+        avgBlockTime: row.metric.avgBlockTime,
+        estimatedDailyTxs: row.metric.estimatedDailyTxs,
+        actualDailyTxs: row.metric.actualDailyTxs,
+        activeAddresses: row.metric.activeAddresses,
+        cumulativeAddresses: row.metric.cumulativeAddresses,
+        tps: row.metric.tps,
+        peakTps: row.metric.peakTps,
+        avgGasConsumption: row.metric.avgGasConsumption,
+      }
       : null,
   }));
 
@@ -108,7 +114,17 @@ export async function getChainBySlug(
   db: Database,
   slug: string,
 ): Promise<
-  (ChainWithMetrics & { validators: { nodeId: string; weight: number | null }[] }) | null
+  (ChainWithMetrics & { validators: {
+    nodeId: string;
+    weight: number | null;
+    isConnected: boolean | null;
+    uptimePercent: number | null;
+    startTime: number | null;
+    endTime: number | null;
+    delegationFee: number | null;
+    delegatorCount: number | null;
+    delegatorWeight: number | null;
+  }[] }) | null
 > {
   const today = new Date().toISOString().split("T")[0];
 
@@ -129,11 +145,18 @@ export async function getChainBySlug(
 
   const row = rows[0];
 
-  // Get validators
+  // Get validators with full details
   const validators = await db
     .select({
       nodeId: chainValidators.nodeId,
       weight: chainValidators.weight,
+      isConnected: chainValidators.isConnected,
+      uptimePercent: chainValidators.uptimePercent,
+      startTime: chainValidators.startTime,
+      endTime: chainValidators.endTime,
+      delegationFee: chainValidators.delegationFee,
+      delegatorCount: chainValidators.delegatorCount,
+      delegatorWeight: chainValidators.delegatorWeight,
     })
     .from(chainValidators)
     .where(eq(chainValidators.chainId, row.chain.id))
@@ -143,16 +166,22 @@ export async function getChainBySlug(
     ...row.chain,
     latestMetrics: row.metric
       ? {
-          date: row.metric.date,
-          validatorCount: row.metric.validatorCount,
-          totalStakeWeight: row.metric.totalStakeWeight,
-          tvlUsd: row.metric.tvlUsd,
-          latestBlockNumber: row.metric.latestBlockNumber,
-          recentTxCount: row.metric.recentTxCount,
-          avgGasPrice: row.metric.avgGasPrice,
-          avgBlockTime: row.metric.avgBlockTime,
-          estimatedDailyTxs: row.metric.estimatedDailyTxs,
-        }
+        date: row.metric.date,
+        validatorCount: row.metric.validatorCount,
+        totalStakeWeight: row.metric.totalStakeWeight,
+        tvlUsd: row.metric.tvlUsd,
+        latestBlockNumber: row.metric.latestBlockNumber,
+        recentTxCount: row.metric.recentTxCount,
+        avgGasPrice: row.metric.avgGasPrice,
+        avgBlockTime: row.metric.avgBlockTime,
+        estimatedDailyTxs: row.metric.estimatedDailyTxs,
+        actualDailyTxs: row.metric.actualDailyTxs,
+        activeAddresses: row.metric.activeAddresses,
+        cumulativeAddresses: row.metric.cumulativeAddresses,
+        tps: row.metric.tps,
+        peakTps: row.metric.peakTps,
+        avgGasConsumption: row.metric.avgGasConsumption,
+      }
       : null,
     validators,
   };
