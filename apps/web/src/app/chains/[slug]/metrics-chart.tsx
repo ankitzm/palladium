@@ -104,7 +104,7 @@ export function MetricsChart({ metrics }: { metrics: ChainMetrics[] }) {
                 fontSize: 12,
               }}
               labelStyle={{ color: "#888899" }}
-              formatter={(value: number | undefined) => [tab.format(value ? Number(value) ?? 0 : 0), tab.label]}
+              formatter={(value: any) => [tab.format(value ? Number(value) : 0), tab.label]}
             />
             <Area
               type="monotone"
