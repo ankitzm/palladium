@@ -60,11 +60,10 @@ export function MetricsChart({ metrics }: { metrics: ChainMetrics[] }) {
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${
-              activeTab === t.key
-                ? "bg-avax-red text-white"
-                : "text-muted hover:text-foreground hover:bg-card-hover"
-            }`}
+            className={`px-3 py-1 text-xs rounded-md transition-colors ${activeTab === t.key
+              ? "bg-avax-red text-white"
+              : "text-muted hover:text-foreground hover:bg-card-hover"
+              }`}
           >
             {t.label}
           </button>
@@ -105,7 +104,7 @@ export function MetricsChart({ metrics }: { metrics: ChainMetrics[] }) {
                 fontSize: 12,
               }}
               labelStyle={{ color: "#888899" }}
-              formatter={(value: number | undefined) => [tab.format(value ?? 0), tab.label]}
+              formatter={(value: number | undefined) => [tab.format(value ? Number(value) ?? 0 : 0), tab.label]}
             />
             <Area
               type="monotone"
