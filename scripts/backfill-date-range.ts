@@ -126,7 +126,11 @@ async function main() {
   }
   console.log(`  DeFiLlama: ${llamaChains.length} chains`);
 
-  // EVM: pre-fetch current block data once
+  // EVM: pre-fetch current block data with multi-block sampling
+  const SAMPLE_POINTS = 50;
+  const MAX_LOOKBACK_BLOCKS = 50000;
+  const MIN_LOOKBACK_BLOCKS = 100;
+
   const evmData = new Map<
     number,
     {
@@ -145,25 +149,73 @@ async function main() {
       batch.map(async (chain) => {
         const rpcUrl = chain.rpcUrl!;
         const latestNum = await fetchBlockNumber(rpcUrl);
-        const olderNum = Math.max(0, latestNum - 10);
-        const [latestBlock, olderBlock] = await Promise.all([
-          fetchBlockByNumber(rpcUrl, latestNum),
-          fetchBlockByNumber(rpcUrl, olderNum),
-        ]);
+        if (latestNum <= 0) return;
+
+        const latestBlock = await fetchBlockByNumber(rpcUrl, latestNum);
         const latestTs = parseInt(latestBlock.timestamp, 16);
-        const olderTs = parseInt(olderBlock.timestamp, 16);
-        const blockDiff = latestNum - olderNum;
-        const avgBlockTime = blockDiff > 0 ? (latestTs - olderTs) / blockDiff : 0;
-        const recentTxCount = latestBlock.transactions.length;
+
+        // Estimate block time from a small probe
+        const probeBlockNum = Math.max(0, latestNum - 100);
+        const probeBlock = await fetchBlockByNumber(rpcUrl, probeBlockNum);
+        const probeTs = parseInt(probeBlock.timestamp, 16);
+        const probeDiff = latestNum - probeBlockNum;
+        const estimatedBlockTime = probeDiff > 0 ? (latestTs - probeTs) / probeDiff : 2;
+
+        // Calculate lookback range
+        const blocksIn24h = estimatedBlockTime > 0 ? Math.round(86400 / estimatedBlockTime) : 43200;
+        const lookback = Math.max(MIN_LOOKBACK_BLOCKS, Math.min(MAX_LOOKBACK_BLOCKS, blocksIn24h, latestNum));
+        const oldestBlockNum = Math.max(0, latestNum - lookback);
+
+        const oldestBlock = await fetchBlockByNumber(rpcUrl, oldestBlockNum);
+        const oldestTs = parseInt(oldestBlock.timestamp, 16);
+        const timeSpanSeconds = latestTs - oldestTs;
+        if (timeSpanSeconds <= 0) return;
+
+        const actualBlockDiff = latestNum - oldestBlockNum;
+        const avgBlockTime = actualBlockDiff > 0 ? timeSpanSeconds / actualBlockDiff : estimatedBlockTime;
+
+        // Sample blocks evenly across the range
+        const sampleBlockNums: number[] = [];
+        const step = Math.max(1, Math.floor(lookback / SAMPLE_POINTS));
+        for (let j = 0; j < SAMPLE_POINTS && (oldestBlockNum + j * step) <= latestNum; j++) {
+          sampleBlockNums.push(oldestBlockNum + j * step);
+        }
+        if (sampleBlockNums[sampleBlockNums.length - 1] !== latestNum) {
+          sampleBlockNums.push(latestNum);
+        }
+
+        // Fetch sample blocks
+        const txCounts: number[] = [];
+        const gasPrices: number[] = [];
+        const BLOCK_BATCH = 10;
+        for (let j = 0; j < sampleBlockNums.length; j += BLOCK_BATCH) {
+          const batchNums = sampleBlockNums.slice(j, j + BLOCK_BATCH);
+          const blocks = await Promise.allSettled(
+            batchNums.map((bn) => fetchBlockByNumber(rpcUrl, bn)),
+          );
+          for (const result of blocks) {
+            if (result.status === "fulfilled") {
+              txCounts.push(result.value.transactions.length);
+              if (result.value.baseFeePerGas) {
+                gasPrices.push(parseInt(result.value.baseFeePerGas, 16) / 1e9);
+              }
+            }
+          }
+        }
+
+        if (txCounts.length === 0) return;
+
+        const totalSampledTxs = txCounts.reduce((sum, n) => sum + n, 0);
+        const avgTxsPerBlock = totalSampledTxs / txCounts.length;
         const blocksPerDay = avgBlockTime > 0 ? 86400 / avgBlockTime : 0;
-        const estimatedDailyTxs = Math.round(recentTxCount * blocksPerDay);
-        const avgGasPrice = latestBlock.baseFeePerGas
-          ? parseInt(latestBlock.baseFeePerGas, 16) / 1e9
+        const estimatedDailyTxs = Math.round(avgTxsPerBlock * blocksPerDay);
+        const avgGasPrice = gasPrices.length > 0
+          ? gasPrices.reduce((sum, g) => sum + g, 0) / gasPrices.length
           : null;
 
         evmData.set(chain.id, {
           latestBlockNumber: latestNum,
-          recentTxCount,
+          recentTxCount: latestBlock.transactions.length,
           avgGasPrice,
           avgBlockTime: avgBlockTime > 0 ? avgBlockTime : null,
           estimatedDailyTxs: estimatedDailyTxs > 0 ? estimatedDailyTxs : null,
@@ -171,7 +223,8 @@ async function main() {
       }),
     );
   }
-  console.log(`  EVM: fetched for ${evmData.size} chains\n`);
+  console.log(`  EVM: fetched for ${evmData.size} chains (multi-block sampling)\n`);
+
 
   // ── Insert for each date ──────────────────────────────────────────
   for (const date of dates) {
