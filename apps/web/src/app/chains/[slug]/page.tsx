@@ -152,8 +152,8 @@ export default async function ChainDetailPage({
         />
         <MetricCard label="TVL" value={formatUsd(m?.tvlUsd)} />
         <MetricCard
-          label="Est. Daily Txs"
-          value={formatNumber(m?.estimatedDailyTxs)}
+          label={m?.actualDailyTxs != null ? "Daily Txs" : "Est. Daily Txs"}
+          value={formatNumber(m?.actualDailyTxs ?? m?.estimatedDailyTxs)}
         />
         <MetricCard
           label="Gas Price"

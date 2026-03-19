@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import type { ChainMetrics } from "@/lib/api";
 
-type MetricKey = "tvlUsd" | "estimatedDailyTxs" | "validatorCount";
+type MetricKey = "tvlUsd" | "dailyTxs" | "validatorCount";
 
 const TABS: { key: MetricKey; label: string; format: (v: number) => string }[] =
   [
@@ -26,7 +26,7 @@ const TABS: { key: MetricKey; label: string; format: (v: number) => string }[] =
             : `$${v}`,
     },
     {
-      key: "estimatedDailyTxs",
+      key: "dailyTxs",
       label: "Daily Txs",
       format: (v) =>
         v >= 1e6
@@ -46,11 +46,18 @@ export function MetricsChart({ metrics }: { metrics: ChainMetrics[] }) {
   const [activeTab, setActiveTab] = useState<MetricKey>("tvlUsd");
   const tab = TABS.find((t) => t.key === activeTab)!;
 
-  const hasData = metrics.some((m) => m[activeTab] != null && m[activeTab]! > 0);
+  const getValue = (m: ChainMetrics): number => {
+    if (activeTab === "dailyTxs") {
+      return (m.actualDailyTxs ?? m.estimatedDailyTxs) ?? 0;
+    }
+    return (m[activeTab as keyof ChainMetrics] as number) ?? 0;
+  };
+
+  const hasData = metrics.some((m) => getValue(m) > 0);
 
   const data = metrics.map((m) => ({
     date: m.date,
-    value: m[activeTab] ?? 0,
+    value: getValue(m),
   }));
 
   return (
