@@ -23,6 +23,8 @@ import {
   fetchBlockNumber,
   fetchBlockByNumber,
 } from "../apps/server/src/clients/evm-rpc.js";
+import { fetchSupportedChains, fetchChainMetric } from "../apps/server/src/clients/avacloud.js";
+import type { AvaCloudMetricName } from "../apps/server/src/clients/avacloud.js";
 
 // ─── Parse CLI args ─────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -225,6 +227,74 @@ async function main() {
   }
   console.log(`  EVM: fetched for ${evmData.size} chains (multi-block sampling)\n`);
 
+  // ── Step 4: Fetch AvaCloud historical metrics ─────────────────────
+  console.log("Fetching AvaCloud historical metrics...");
+  const supportedChains_ = await fetchSupportedChains();
+  const supportedEvmIds = new Set(supportedChains_.map((c) => c.evmChainId));
+  console.log(`  ${supportedEvmIds.size} mainnet chains supported by AvaCloud`);
+
+  // For each eligible chain, fetch N days of historical data for key metrics
+  const avaMetricNames: AvaCloudMetricName[] = [
+    "txCount", "activeAddresses", "cumulativeAddresses",
+    "avgTps", "maxTps", "gasUsed", "avgGasPrice",
+  ];
+
+  // Map: chainId -> dateStr -> { txCount, activeAddresses, ... }
+  type AvaDay = {
+    txCount: number | null;
+    activeAddresses: number | null;
+    cumulativeAddresses: number | null;
+    avgTps: number | null;
+    maxTps: number | null;
+    gasUsed: number | null;
+    avgGasPrice: number | null;
+  };
+  const avaHistorical = new Map<number, Map<string, AvaDay>>();
+
+  const eligibleAva = targetChains.filter(
+    (c) => c.evmChainId !== null && c.isEvm && supportedEvmIds.has(c.evmChainId!),
+  );
+
+  for (let i = 0; i < eligibleAva.length; i += 5) {
+    const batch = eligibleAva.slice(i, i + 5);
+    await Promise.allSettled(
+      batch.map(async (chain) => {
+        const evmId = chain.evmChainId!;
+        const dayMap = new Map<string, AvaDay>();
+
+        // Fetch each metric with enough pageSize for our date range
+        const results = await Promise.allSettled(
+          avaMetricNames.map((m) =>
+            fetchChainMetric(evmId, m, { timeInterval: "day", pageSize: dates.length + 2 }),
+          ),
+        );
+
+        // Build a timestamp->dateStr lookup
+        for (let mIdx = 0; mIdx < avaMetricNames.length; mIdx++) {
+          const r = results[mIdx];
+          if (r.status !== "fulfilled") continue;
+          for (const dp of r.value) {
+            const d = new Date(dp.timestamp * 1000).toISOString().split("T")[0];
+            if (!dayMap.has(d)) {
+              dayMap.set(d, {
+                txCount: null, activeAddresses: null, cumulativeAddresses: null,
+                avgTps: null, maxTps: null, gasUsed: null, avgGasPrice: null,
+              });
+            }
+            const entry = dayMap.get(d)!;
+            (entry as any)[avaMetricNames[mIdx]] = dp.value;
+          }
+        }
+
+        avaHistorical.set(chain.id, dayMap);
+        const daysWithData = [...dayMap.values()].filter((d) => d.txCount !== null).length;
+        if (daysWithData > 0) {
+          console.log(`  ✓ ${chain.name} (${evmId}): ${daysWithData} days of AvaCloud data`);
+        }
+      }),
+    );
+  }
+  console.log(`  AvaCloud: fetched historical data for ${avaHistorical.size} chains\n`);
 
   // ── Insert for each date ──────────────────────────────────────────
   for (const date of dates) {
@@ -299,6 +369,39 @@ async function main() {
               updatedAt: new Date(),
             },
           });
+      }
+
+      // AvaCloud historical (overwrites EVM estimates with accurate data)
+      const avaChainData = avaHistorical.get(chain.id);
+      if (avaChainData) {
+        const avaDay = avaChainData.get(date);
+        if (avaDay && (avaDay.txCount !== null || avaDay.activeAddresses !== null)) {
+          await db
+            .insert(chainMetrics)
+            .values({
+              chainId: chain.id,
+              date,
+              actualDailyTxs: avaDay.txCount,
+              activeAddresses: avaDay.activeAddresses,
+              cumulativeAddresses: avaDay.cumulativeAddresses,
+              tps: avaDay.avgTps,
+              peakTps: avaDay.maxTps,
+              avgGasConsumption: avaDay.gasUsed,
+              updatedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: [chainMetrics.chainId, chainMetrics.date],
+              set: {
+                actualDailyTxs: avaDay.txCount,
+                activeAddresses: avaDay.activeAddresses,
+                cumulativeAddresses: avaDay.cumulativeAddresses,
+                tps: avaDay.avgTps,
+                peakTps: avaDay.maxTps,
+                avgGasConsumption: avaDay.gasUsed,
+                updatedAt: new Date(),
+              },
+            });
+        }
       }
     }
 
