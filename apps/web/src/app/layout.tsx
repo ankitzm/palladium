@@ -1,23 +1,33 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
+import { Inter, Spectral, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { QueryProvider } from "@/lib/query/provider";
+import { TopNav } from "@/components/layout/TopNav";
+import { MobileTabBar } from "@/components/layout/MobileTabBar";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const spectral = Spectral({
+  variable: "--font-spectral",
+  weight: ["500"],
+  subsets: ["latin"],
+});
+
+const jetbrains = JetBrains_Mono({
+  variable: "--font-jetbrains",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Palladium — Avalanche L1 Explorer",
+  title: "Palladium — Avalanche L1 Index",
   description:
-    "Discover, compare, and evaluate every Avalanche L1 chain. Real-time metrics, validators, TVL, and activity data.",
+    "Discover, compare, and evaluate every Avalanche L1 chain. Validators, TVL, transactions, and gas — indexed daily, served over an open API.",
 };
+
+const devModeInit = `try{if(localStorage.getItem('palladium-dev')==='1')document.documentElement.classList.add('dev')}catch(e){}`;
 
 export default function RootLayout({
   children,
@@ -27,47 +37,22 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
+        className={`${inter.variable} ${spectral.variable} ${jetbrains.variable} antialiased min-h-screen`}
       >
-        <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-          <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-avax-red font-bold text-white text-sm">
-                P
-              </div>
-              <span className="font-semibold text-foreground tracking-tight">
-                PALLADIUM
-              </span>
-            </Link>
-            <nav className="flex items-center gap-6 text-sm">
-              <Link
-                href="/"
-                className="text-muted hover:text-foreground transition-colors"
-              >
-                Overview
-              </Link>
-              <Link
-                href="/chains"
-                className="text-muted hover:text-foreground transition-colors"
-              >
-                Chains
-              </Link>
-              <Link
-                href="/api-docs"
-                className="text-muted hover:text-foreground transition-colors"
-              >
-                API
-              </Link>
-            </nav>
-          </div>
-        </header>
-        <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
-        <footer className="border-t border-border py-6 text-center text-xs text-muted">
-          <div className="mx-auto max-w-7xl px-4">
-            Palladium — Open-source Avalanche L1 Explorer. Data sourced from
-            Glacier, P-Chain, DeFiLlama, and on-chain RPCs.
-          </div>
-        </footer>
+        <script dangerouslySetInnerHTML={{ __html: devModeInit }} />
+        <QueryProvider>
+          <TopNav />
+          <main className="mx-auto max-w-7xl px-4 py-6 pb-24 md:pb-8">
+            {children}
+          </main>
+          <footer className="border-t border-border py-6 text-center text-xs text-faint">
+            <div className="mx-auto max-w-7xl px-4">
+              Palladium — open-source Avalanche L1 explorer. Data from Glacier,
+              P-Chain, DeFiLlama, and on-chain RPCs.
+            </div>
+          </footer>
+          <MobileTabBar />
+        </QueryProvider>
       </body>
     </html>
   );

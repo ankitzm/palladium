@@ -9,56 +9,35 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import type { ChainMetrics } from "@/lib/api";
+import type { ChainMetrics } from "@/types";
+import { seriesFor, type SeriesKey } from "@/lib/metrics-calc";
 
-type MetricKey = "tvlUsd" | "dailyTxs" | "validatorCount";
-
-const TABS: { key: MetricKey; label: string; format: (v: number) => string }[] =
-  [
-    {
-      key: "tvlUsd",
-      label: "TVL",
-      format: (v) =>
-        v >= 1e6
-          ? `$${(v / 1e6).toFixed(1)}M`
-          : v >= 1e3
-            ? `$${(v / 1e3).toFixed(0)}K`
-            : `$${v}`,
-    },
-    {
-      key: "dailyTxs",
-      label: "Daily Txs",
-      format: (v) =>
-        v >= 1e6
-          ? `${(v / 1e6).toFixed(1)}M`
-          : v >= 1e3
-            ? `${(v / 1e3).toFixed(1)}K`
-            : String(v),
-    },
-    {
-      key: "validatorCount",
-      label: "Validators",
-      format: (v) => String(v),
-    },
-  ];
+const TABS: { key: SeriesKey; label: string; format: (v: number) => string }[] = [
+  {
+    key: "tvlUsd",
+    label: "TVL",
+    format: (v) =>
+      v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `$${(v / 1e3).toFixed(0)}K` : `$${v}`,
+  },
+  {
+    key: "dailyTxs",
+    label: "Daily Txs",
+    format: (v) =>
+      v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(1)}K` : String(v),
+  },
+  {
+    key: "validatorCount",
+    label: "Validators",
+    format: (v) => String(v),
+  },
+];
 
 export function MetricsChart({ metrics }: { metrics: ChainMetrics[] }) {
-  const [activeTab, setActiveTab] = useState<MetricKey>("tvlUsd");
+  const [activeTab, setActiveTab] = useState<SeriesKey>("tvlUsd");
   const tab = TABS.find((t) => t.key === activeTab)!;
 
-  const getValue = (m: ChainMetrics): number => {
-    if (activeTab === "dailyTxs") {
-      return (m.actualDailyTxs ?? m.estimatedDailyTxs) ?? 0;
-    }
-    return (m[activeTab as keyof ChainMetrics] as number) ?? 0;
-  };
-
-  const hasData = metrics.some((m) => getValue(m) > 0);
-
-  const data = metrics.map((m) => ({
-    date: m.date,
-    value: getValue(m),
-  }));
+  const data = seriesFor(metrics, activeTab);
+  const hasData = data.some((p) => p.value > 0);
 
   return (
     <div>
@@ -69,8 +48,8 @@ export function MetricsChart({ metrics }: { metrics: ChainMetrics[] }) {
             onClick={() => setActiveTab(t.key)}
             className={`px-3 py-1 text-xs rounded-md transition-colors ${
               activeTab === t.key
-                ? "bg-avax-red text-white"
-                : "text-muted hover:text-foreground hover:bg-card-hover"
+                ? "bg-avax-red text-background"
+                : "text-muted hover:text-foreground hover:bg-elevated"
             }`}
           >
             {t.label}
@@ -91,36 +70,19 @@ export function MetricsChart({ metrics }: { metrics: ChainMetrics[] }) {
                 <stop offset="95%" stopColor="#e84142" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 10, fill: "#888899" }}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis
-              tick={{ fontSize: 10, fill: "#888899" }}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={tab.format}
-              width={60}
-            />
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#8b8d93" }} tickLine={false} axisLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: "#8b8d93" }} tickLine={false} axisLine={false} tickFormatter={tab.format} width={60} />
             <Tooltip
               contentStyle={{
-                background: "#111118",
-                border: "1px solid #222233",
+                background: "#141518",
+                border: "1px solid rgba(255,255,255,0.12)",
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              labelStyle={{ color: "#888899" }}
+              labelStyle={{ color: "#9a9ca2" }}
               formatter={(value: number | undefined) => [tab.format(value ?? 0), tab.label]}
             />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke="#e84142"
-              strokeWidth={2}
-              fill="url(#colorValue)"
-            />
+            <Area type="monotone" dataKey="value" stroke="#e84142" strokeWidth={2} fill="url(#colorValue)" />
           </AreaChart>
         </ResponsiveContainer>
       )}
