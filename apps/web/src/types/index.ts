@@ -1,13 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787";
-
-async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    next: { revalidate: 30 },
-  });
-  if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
-  return res.json();
-}
+// Frontend domain types. Single source of truth for the shapes the web app
+// consumes from the Palladium API. Mirrors the backend response shapes.
 
 export interface ChainMetrics {
   date: string;
@@ -25,6 +17,18 @@ export interface ChainMetrics {
   tps: number | null;
   peakTps: number | null;
   avgGasConsumption: number | null;
+}
+
+export interface ChainValidator {
+  nodeId: string;
+  weight: number | null;
+  isConnected: boolean | null;
+  uptimePercent: number | null;
+  startTime: number | null;
+  endTime: number | null;
+  delegationFee: number | null;
+  delegatorCount: number | null;
+  delegatorWeight: number | null;
 }
 
 export interface Chain {
@@ -49,6 +53,8 @@ export interface Chain {
   isFeatured: boolean;
   enabled: boolean;
   latestMetrics: ChainMetrics | null;
+  // Present only on the single-chain detail response.
+  validators?: ChainValidator[];
 }
 
 export interface OverviewData {
@@ -60,6 +66,15 @@ export interface OverviewData {
   topChainsByTvl: Chain[];
   topChainsByTxs: Chain[];
   lastIngestionAt: string | null;
+  // Phase C additions (optional until the backend ships them).
+  totalValidators?: number;
+  total24hTxns?: number;
+  tvlChangePct?: number | null;
+  validatorsChangePct?: number | null;
+  txnsChangePct?: number | null;
+  asOfDate?: string | null;
+  spotlightSlug?: string | null;
+  spotlightChain?: Chain | null;
 }
 
 export interface ChainsListResponse {
@@ -75,11 +90,29 @@ export interface MetricsHistoryResponse {
   metrics: ChainMetrics[];
 }
 
-export async function getOverview(): Promise<OverviewData> {
-  return fetchApi("/api/overview");
+// Phase C: cross-chain validator listing.
+export interface ValidatorRow {
+  nodeId: string;
+  weight: number | null;
+  uptimePercent: number | null;
+  isConnected: boolean | null;
+  startTime: number | null;
+  delegatorCount: number | null;
+  chain: {
+    slug: string;
+    name: string;
+    isFeatured: boolean;
+  };
 }
 
-export async function getChains(params?: {
+export interface ValidatorsListResponse {
+  validators: ValidatorRow[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ChainsQueryParams {
   sort?: string;
   order?: string;
   vm_type?: string;
@@ -87,24 +120,4 @@ export async function getChains(params?: {
   search?: string;
   limit?: number;
   offset?: number;
-}): Promise<ChainsListResponse> {
-  const searchParams = new URLSearchParams();
-  if (params) {
-    for (const [key, val] of Object.entries(params)) {
-      if (val !== undefined) searchParams.set(key, String(val));
-    }
-  }
-  const qs = searchParams.toString();
-  return fetchApi(`/api/chains${qs ? `?${qs}` : ""}`);
-}
-
-export async function getChainBySlug(slug: string): Promise<{ chain: Chain }> {
-  return fetchApi(`/api/chains/${slug}`);
-}
-
-export async function getMetricsHistory(
-  slug: string,
-  days = 30,
-): Promise<MetricsHistoryResponse> {
-  return fetchApi(`/api/chains/${slug}/metrics?days=${days}`);
 }
