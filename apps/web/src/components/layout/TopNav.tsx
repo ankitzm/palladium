@@ -51,6 +51,8 @@ export function TopNav() {
           <button
             type="button"
             aria-label="Menu"
+            aria-expanded={open}
+            aria-controls="mobile-nav"
             onClick={() => setOpen((o) => !o)}
             className="md:hidden text-foreground text-xl leading-none"
           >
@@ -59,7 +61,7 @@ export function TopNav() {
         </div>
       </div>
       {open && (
-        <div className="md:hidden border-t border-border px-4 py-2 flex flex-col">
+        <div id="mobile-nav" className="md:hidden border-t border-border px-4 py-2 flex flex-col">
           {LINKS.map((l) => (
             <Link
               key={l.href}

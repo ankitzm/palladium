@@ -4,8 +4,17 @@ import { formatUsd, formatNumber } from "@/lib/format";
 import { metricValue } from "@/lib/metrics-calc";
 import { ChainIcon } from "@/components/ui/ChainIcon";
 
-export function SpotlightCard({ chain }: { chain: Chain }) {
+export function SpotlightCard({
+  chain,
+  reason,
+}: {
+  chain: Chain;
+  reason?: string;
+}) {
   const m = chain.latestMetrics;
+  // Prefer the chain's own description; otherwise state the verifiable reason
+  // it's featured. Never assert an unverified claim (e.g. "most active").
+  const blurb = chain.description ?? reason;
   return (
     <div className="grid items-center gap-4 rounded-[12px] border border-border bg-surface p-5 md:grid-cols-[1.1fr_1fr]">
       <div>
@@ -19,10 +28,11 @@ export function SpotlightCard({ chain }: { chain: Chain }) {
             </div>
           </div>
         </div>
-        <p className="max-w-sm text-[13px] leading-relaxed text-muted">
-          {chain.description ??
-            "One of the most active L1s on the network this period."}
-        </p>
+        {blurb && (
+          <p className="max-w-sm text-[13px] leading-relaxed text-muted">
+            {blurb}
+          </p>
+        )}
         <Link
           href={`/chains/${chain.slug}`}
           className="mt-3.5 inline-flex items-center gap-1.5 rounded-sm bg-avax-red px-3 py-2 text-xs font-medium text-background"

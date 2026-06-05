@@ -1,5 +1,7 @@
 export function formatUsd(value: number | null | undefined): string {
-  if (value == null) return "—";
+  // Honest by default: missing data AND a genuine zero both render as "—".
+  // The brand never shows an invented "$0" (DESIGN.md / PRODUCT.md).
+  if (!value) return "—";
   if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
   if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
   if (value >= 1e3) return `$${(value / 1e3).toFixed(1)}K`;
@@ -20,11 +22,15 @@ export function formatCompact(value: number | null | undefined): string {
 
 export function formatChange(
   pct: number | null | undefined,
-): { text: string; cls: string } | null {
+): { text: string; label: string; cls: string } | null {
   if (pct == null) return null;
   const up = pct >= 0;
+  const magnitude = `${Math.abs(pct).toFixed(1)}%`;
   return {
-    text: `${up ? "▲" : "▼"}${Math.abs(pct).toFixed(1)}%`,
+    // Visible text keeps the ▲/▼ shape so state is never color-only.
+    text: `${up ? "▲" : "▼"}${magnitude}`,
+    // Accessible name for screen readers (the glyph alone reads poorly).
+    label: `${up ? "up" : "down"} ${magnitude}`,
     cls: up ? "text-pos-text" : "text-neg",
   };
 }

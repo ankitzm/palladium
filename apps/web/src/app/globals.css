@@ -18,7 +18,7 @@
   --color-line: #c9cbd1;
   --color-muted: #9a9ca2;
   --color-dim: #8b8d93;
-  --color-faint: #6f727a;
+  --color-faint: #7d808a;
 
   --color-avax-red: #e84142;
   --color-avax-red-soft: rgba(232, 65, 66, 0.12);
@@ -28,6 +28,9 @@
   --color-pos-text: #5ee49b;
   --color-pos-soft: rgba(58, 209, 126, 0.13);
   --color-neg: #ff6b6b;
+
+  --color-warn: #ffb86b;
+  --color-warn-soft: rgba(255, 184, 107, 0.12);
 
   --font-sans: var(--font-inter);
   --font-serif: var(--font-spectral);
@@ -54,4 +57,24 @@ body {
 ::-webkit-scrollbar-thumb {
   background: #2a2c31;
   border-radius: 4px;
+}
+
+/* Visible keyboard focus everywhere (PRODUCT.md: fully keyboard operable).
+   No border-radius here: the outline follows each element's own radius, and
+   setting one would override component corners on focus. */
+:focus-visible {
+  outline: 2px solid var(--color-avax-red);
+  outline-offset: 2px;
+}
+
+/* Motion conveys state, never decoration. Honor the user's preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

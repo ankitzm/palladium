@@ -7,6 +7,7 @@ import { formatUsd, formatNumber, timeAgo } from "@/lib/format";
 import { metricValue, isStale } from "@/lib/metrics-calc";
 import { StatBand } from "@/components/overview/StatBand";
 import { SpotlightCard } from "@/components/overview/SpotlightCard";
+import { OverviewSkeleton, OverviewError } from "@/components/overview/OverviewStates";
 import { ChainIcon } from "@/components/ui/ChainIcon";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import { syn } from "@/components/ui/syntax";
@@ -16,8 +17,10 @@ function liveRpcCount(chains: Chain[]) {
 }
 
 export function OverviewView() {
-  const { data } = useOverview();
-  if (!data) return null;
+  const { data, isError, refetch, isFetching } = useOverview();
+  if (isError && !data)
+    return <OverviewError onRetry={() => refetch()} retrying={isFetching} />;
+  if (!data) return <OverviewSkeleton />;
 
   const top = data.topChainsByTvl ?? [];
   const spotlight =
@@ -27,6 +30,13 @@ export function OverviewView() {
     top[0] ||
     data.topChainsByTxs?.[0];
   const rows = top.slice(0, 8);
+  const spotlightReason = !spotlight
+    ? undefined
+    : spotlight.isFeatured
+      ? "Featured chain"
+      : spotlight.id === top[0]?.id
+        ? "Highest TVL on the index right now"
+        : undefined;
 
   const latestDate =
     data.asOfDate ?? rows.find((c) => c.latestMetrics)?.latestMetrics?.date ?? null;
@@ -38,7 +48,7 @@ export function OverviewView() {
         <p className="text-[11px] tracking-[2px] text-avax-red">
           THE AVALANCHE L1 INDEX
         </p>
-        <h1 className="mt-3 max-w-xl font-serif text-[40px] font-medium leading-[1.08]">
+        <h1 className="mt-3 max-w-xl text-balance font-serif text-[34px] font-medium leading-[1.08] md:text-[40px]">
           {formatNumber(data.totalChains)} sovereign chains.
           <br />
           One source of truth.
@@ -96,7 +106,7 @@ export function OverviewView() {
       {spotlight && (
         <div className="mt-6">
           <div className="mb-3 text-[11px] tracking-[1.5px] text-muted">CHAIN IN FOCUS</div>
-          <SpotlightCard chain={spotlight} />
+          <SpotlightCard chain={spotlight} reason={spotlightReason} />
         </div>
       )}
 
@@ -105,7 +115,7 @@ export function OverviewView() {
           <h2 className="flex items-center gap-2 text-[15px] font-medium">All chains</h2>
           <div className="flex items-center gap-2.5 font-mono text-[11px]">
             {stale && latestDate && (
-              <span className="rounded bg-[rgba(255,184,107,0.12)] px-2 py-0.5 text-[#ffb86b]">
+              <span className="rounded bg-warn-soft px-2 py-0.5 text-warn">
                 data from {latestDate}
               </span>
             )}
@@ -120,6 +130,9 @@ export function OverviewView() {
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[540px] border-collapse font-mono text-xs">
+            <caption className="sr-only">
+              Top Avalanche L1s by total value locked
+            </caption>
             <thead>
               <tr className="text-faint">
                 <th className="px-3 py-2 text-left font-normal">#</th>
@@ -134,6 +147,14 @@ export function OverviewView() {
               </tr>
             </thead>
             <tbody>
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-3 py-10 text-center text-faint">
+                    No chains indexed yet. Run the ingestion pipeline to populate
+                    the index.
+                  </td>
+                </tr>
+              )}
               {rows.map((c, i) => {
                 const m = c.latestMetrics;
                 return (
@@ -150,7 +171,7 @@ export function OverviewView() {
                     <td className="px-3 py-2.5 text-right">{formatNumber(m ? metricValue(m, "dailyTxs") : null)}</td>
                     <td className="px-3 py-2.5 text-right">{m?.avgBlockTime != null ? `${m.avgBlockTime}s` : <span className="text-faint">—</span>}</td>
                     <td className="hidden dev:table-cell px-3 py-2.5 text-left text-muted">{c.evmChainId ?? "—"}</td>
-                    <td className="hidden dev:table-cell px-3 py-2.5 text-left">{c.rpcUrl ? <span className="text-pos-text">● live</span> : <span className="text-faint">○ none</span>}</td>
+                    <td className="hidden dev:table-cell px-3 py-2.5 text-left">{c.rpcUrl ? <span className="text-pos-text"><span aria-hidden="true">●</span> live</span> : <span className="text-faint"><span aria-hidden="true">○</span> none</span>}</td>
                     <td className="px-3 py-2.5 text-left text-dim">{c.vmType}</td>
                   </tr>
                 );
@@ -161,7 +182,7 @@ export function OverviewView() {
 
         <div className="mt-2.5 flex items-center justify-between font-mono text-[11px] text-faint">
           <span>showing {rows.length} · {liveRpcCount(rows)} with live RPC</span>
-          <Link href="/chains" className="text-avax-red-text">view all chains ↗</Link>
+          <Link href="/chains" className="text-avax-red-text">view all chains <span aria-hidden="true">↗</span></Link>
         </div>
       </div>
     </div>

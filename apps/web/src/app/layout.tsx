@@ -22,9 +22,9 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Palladium — Avalanche L1 Index",
+  title: "Palladium · Avalanche L1 Index",
   description:
-    "Discover, compare, and evaluate every Avalanche L1 chain. Validators, TVL, transactions, and gas — indexed daily, served over an open API.",
+    "Discover, compare, and evaluate every Avalanche L1 chain. Validators, TVL, transactions, and gas, indexed daily and served over an open API.",
 };
 
 const devModeInit = `try{if(localStorage.getItem('palladium-dev')==='1')document.documentElement.classList.add('dev')}catch(e){}`;
@@ -47,8 +47,8 @@ export default function RootLayout({
           </main>
           <footer className="border-t border-border py-6 text-center text-xs text-faint">
             <div className="mx-auto max-w-7xl px-4">
-              Palladium — open-source Avalanche L1 explorer. Data from Glacier,
-              P-Chain, DeFiLlama, and on-chain RPCs.
+              Palladium is an open-source Avalanche L1 explorer. Data from
+              Glacier, P-Chain, DeFiLlama, and on-chain RPCs.
             </div>
           </footer>
           <MobileTabBar />
