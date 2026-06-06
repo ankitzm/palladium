@@ -13,5 +13,6 @@ export const queryKeys = {
     ["validators", params ?? {}] as const,
   primaryValidators: (params?: object) =>
     ["primary-validators", params ?? {}] as const,
+  protocols: (params?: object) => ["protocols", params ?? {}] as const,
   blockHeight: (slug: string) => ["block-height", slug] as const,
 };

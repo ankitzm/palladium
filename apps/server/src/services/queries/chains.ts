@@ -104,6 +104,11 @@ export async function listChains(
         tps: row.metric.tps,
         peakTps: row.metric.peakTps,
         avgGasConsumption: row.metric.avgGasConsumption,
+        feesPaid: row.metric.feesPaid,
+        activeSenders: row.metric.activeSenders,
+        contractsDeployed: row.metric.contractsDeployed,
+        cumulativeTxCount: row.metric.cumulativeTxCount,
+        cumulativeContracts: row.metric.cumulativeContracts,
       }
       : null,
   }));
@@ -183,6 +188,11 @@ export async function getChainBySlug(
         tps: row.metric.tps,
         peakTps: row.metric.peakTps,
         avgGasConsumption: row.metric.avgGasConsumption,
+        feesPaid: row.metric.feesPaid,
+        activeSenders: row.metric.activeSenders,
+        contractsDeployed: row.metric.contractsDeployed,
+        cumulativeTxCount: row.metric.cumulativeTxCount,
+        cumulativeContracts: row.metric.cumulativeContracts,
       }
       : null,
     validators,

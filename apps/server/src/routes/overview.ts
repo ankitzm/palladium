@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { and, eq, sql, desc, lt } from "drizzle-orm";
-import { chains, chainMetrics, ingestionLog } from "@palladium/shared/db/schema";
+import { chains, chainMetrics, ingestionLog, networkMetrics } from "@palladium/shared/db/schema";
 import { listChains, getChainBySlug } from "../services/queries/chains.js";
 import type { Database } from "@palladium/shared/db";
 
@@ -123,6 +123,19 @@ export function overviewRoutes(db: Database) {
       .orderBy(desc(ingestionLog.completedAt))
       .limit(1);
 
+    // Network-wide staking rollups (latest snapshot) — the Avalanche Primary
+    // Network totals, distinct from the per-L1 validator sums above.
+    const [net] = await db
+      .select({
+        validatorCount: networkMetrics.validatorCount,
+        validatorWeight: networkMetrics.validatorWeight,
+        delegatorCount: networkMetrics.delegatorCount,
+        delegatorWeight: networkMetrics.delegatorWeight,
+      })
+      .from(networkMetrics)
+      .orderBy(desc(networkMetrics.date))
+      .limit(1);
+
     return c.json({
       totalChains: Number(stats.totalChains),
       totalSubnets: Number(stats.totalSubnets),
@@ -140,6 +153,14 @@ export function overviewRoutes(db: Database) {
       topChainsByTvl: topByTvl.chains,
       topChainsByTxs: topByTxs.chains,
       lastIngestionAt: lastIngestion?.completedAt?.toISOString() ?? null,
+      network: net
+        ? {
+            validatorCount: net.validatorCount,
+            validatorWeight: net.validatorWeight,
+            delegatorCount: net.delegatorCount,
+            delegatorWeight: net.delegatorWeight,
+          }
+        : null,
     });
   });
 

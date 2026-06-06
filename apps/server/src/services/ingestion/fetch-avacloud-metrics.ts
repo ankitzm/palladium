@@ -43,36 +43,39 @@ export async function fetchAvaCloudMetrics(db: Database): Promise<number> {
         const stats: string[] = [];
         if (data.txCount !== null) stats.push(`txs=${data.txCount}`);
         if (data.activeAddresses !== null) stats.push(`addrs=${data.activeAddresses}`);
+        if (data.feesPaid !== null) stats.push(`fees=${data.feesPaid.toFixed(2)}`);
         if (data.avgTps !== null) stats.push(`tps=${data.avgTps.toFixed(2)}`);
-        if (data.cumulativeTxCount !== null) stats.push(`cumTxs=${data.cumulativeTxCount}`);
         console.log(
           `[fetch-avacloud] ✓ ${chain.name} (${chain.evmChainId}): ${stats.join(", ") || "no data"}`,
         );
 
+        // Shared column set for insert + update (Bucket A extended metrics).
+        const cols = {
+          actualDailyTxs: data.txCount,
+          activeAddresses: data.activeAddresses,
+          activeSenders: data.activeSenders,
+          cumulativeAddresses: data.cumulativeAddresses,
+          cumulativeTxCount: data.cumulativeTxCount,
+          cumulativeContracts: data.cumulativeContracts,
+          cumulativeDeployers: data.cumulativeDeployers,
+          contractsDeployed: data.contracts,
+          deployers: data.deployers,
+          tps: data.avgTps,
+          peakTps: data.maxTps,
+          avgGps: data.avgGps,
+          maxGps: data.maxGps,
+          avgGasConsumption: data.gasUsed,
+          maxGasPrice: data.maxGasPrice,
+          feesPaid: data.feesPaid,
+          updatedAt: new Date(),
+        };
+
         await db
           .insert(chainMetrics)
-          .values({
-            chainId: chain.id,
-            date: today,
-            actualDailyTxs: data.txCount,
-            activeAddresses: data.activeAddresses,
-            cumulativeAddresses: data.cumulativeAddresses,
-            tps: data.avgTps,
-            peakTps: data.maxTps,
-            avgGasConsumption: data.gasUsed,
-            updatedAt: new Date(),
-          })
+          .values({ chainId: chain.id, date: today, ...cols })
           .onConflictDoUpdate({
             target: [chainMetrics.chainId, chainMetrics.date],
-            set: {
-              actualDailyTxs: data.txCount,
-              activeAddresses: data.activeAddresses,
-              cumulativeAddresses: data.cumulativeAddresses,
-              tps: data.avgTps,
-              peakTps: data.maxTps,
-              avgGasConsumption: data.gasUsed,
-              updatedAt: new Date(),
-            },
+            set: cols,
           });
 
         return true;

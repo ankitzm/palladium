@@ -8,6 +8,7 @@ import { MetricsChart } from "./metrics-chart";
 import { MetricCard } from "@/components/chain-detail/MetricCard";
 import { NetworkParams } from "@/components/chain-detail/NetworkParams";
 import { ValidatorList } from "@/components/chain-detail/ValidatorList";
+import { ProtocolList } from "@/components/chain-detail/ProtocolList";
 import { ConnectSnippet } from "@/components/chain-detail/ConnectSnippet";
 import { WalletButton } from "@/components/chain-detail/WalletButton";
 import { ChainIcon } from "@/components/ui/ChainIcon";
@@ -93,6 +94,33 @@ export function ChainDetailView({ slug, days }: { slug: string; days: number }) 
         />
       </div>
 
+      {m &&
+        (m.feesPaid != null ||
+          m.activeSenders != null ||
+          m.contractsDeployed != null ||
+          m.cumulativeTxCount != null) && (
+          <div className="mb-4 grid grid-cols-2 gap-2.5 md:grid-cols-4">
+            <MetricCard
+              label="Fees paid (24h)"
+              value={m.feesPaid != null ? formatUsd(m.feesPaid) : "—"}
+            />
+            <MetricCard
+              label="Active senders"
+              value={formatNumber(m.activeSenders)}
+              sub={m.activeAddresses != null ? `${formatNumber(m.activeAddresses)} active addrs` : undefined}
+            />
+            <MetricCard
+              label="Contracts (24h)"
+              value={formatNumber(m.contractsDeployed)}
+              sub={m.cumulativeContracts != null ? `${formatNumber(m.cumulativeContracts)} total` : undefined}
+            />
+            <MetricCard
+              label="Cumulative txns"
+              value={formatNumber(m.cumulativeTxCount)}
+            />
+          </div>
+        )}
+
       <div className="grid gap-3.5 md:grid-cols-[1.4fr_1fr]">
         <div className="flex flex-col gap-3.5">
           {history && history.length > 1 ? (
@@ -110,6 +138,7 @@ export function ChainDetailView({ slug, days }: { slug: string; days: number }) 
 
         <div className="flex flex-col gap-3.5">
           <NetworkParams chain={chain} />
+          <ProtocolList slug={chain.slug} />
           <ValidatorList validators={chain.validators} totalStakeWeight={m?.totalStakeWeight} />
 
           <div className="rounded-md border border-border bg-surface p-3.5">

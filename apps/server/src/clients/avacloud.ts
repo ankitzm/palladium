@@ -3,12 +3,27 @@ const BASE_URL = "https://metrics.avax.network/v2";
 export type AvaCloudMetricName =
   | "txCount"
   | "activeAddresses"
+  | "activeSenders"
   | "cumulativeAddresses"
+  | "cumulativeTxCount"
+  | "cumulativeContracts"
+  | "cumulativeDeployers"
+  | "contracts"
+  | "deployers"
   | "avgTps"
   | "maxTps"
+  | "avgGps"
+  | "maxGps"
   | "gasUsed"
   | "avgGasPrice"
-  | "cumulativeTxCount";
+  | "maxGasPrice"
+  | "feesPaid";
+
+export type AvaCloudNetworkMetricName =
+  | "validatorCount"
+  | "validatorWeight"
+  | "delegatorCount"
+  | "delegatorWeight";
 
 interface MetricResult {
   value: number;
@@ -71,61 +86,82 @@ export async function fetchChainMetric(
  * For txCount, we fetch the last 2 data points so we can verify
  * the most recent one is non-zero and recent.
  */
-export async function fetchAllChainMetrics(evmChainId: number): Promise<{
-  txCount: number | null;
-  activeAddresses: number | null;
-  cumulativeAddresses: number | null;
-  avgTps: number | null;
-  maxTps: number | null;
-  gasUsed: number | null;
-  avgGasPrice: number | null;
-  cumulativeTxCount: number | null;
-}> {
-  const metrics: AvaCloudMetricName[] = [
-    "txCount",
-    "activeAddresses",
-    "cumulativeAddresses",
-    "avgTps",
-    "maxTps",
-    "gasUsed",
-    "avgGasPrice",
-    "cumulativeTxCount",
-  ];
+export type ChainMetricsBundle = Record<AvaCloudMetricName, number | null>;
 
+const ALL_CHAIN_METRICS: AvaCloudMetricName[] = [
+  "txCount",
+  "activeAddresses",
+  "activeSenders",
+  "cumulativeAddresses",
+  "cumulativeTxCount",
+  "cumulativeContracts",
+  "cumulativeDeployers",
+  "contracts",
+  "deployers",
+  "avgTps",
+  "maxTps",
+  "avgGps",
+  "maxGps",
+  "gasUsed",
+  "avgGasPrice",
+  "maxGasPrice",
+  "feesPaid",
+];
+
+export async function fetchAllChainMetrics(
+  evmChainId: number,
+): Promise<ChainMetricsBundle> {
   const results = await Promise.allSettled(
-    metrics.map((m) => fetchChainMetric(evmChainId, m, { timeInterval: "day", pageSize: 2 })),
+    ALL_CHAIN_METRICS.map((m) =>
+      fetchChainMetric(evmChainId, m, { timeInterval: "day", pageSize: 2 }),
+    ),
   );
 
-  const getValue = (idx: number): number | null => {
+  const valueAt = (idx: number): number | null => {
     const r = results[idx];
     if (r.status === "fulfilled" && r.value.length > 0) {
-      // Use the most recent data point
-      // But verify the timestamp is within the last 48 hours
       const latest = r.value[0];
       const now = Math.floor(Date.now() / 1000);
       const age = now - latest.timestamp;
-      // Accept data up to 72 hours old (metrics may lag)
-      if (age <= 72 * 3600) {
-        return latest.value;
-      }
-      // If most recent is too old, try the second data point
-      if (r.value.length > 1) {
-        return r.value[1].value;
-      }
-      // Still return even if old - some chains just don't have recent activity
+      if (age <= 72 * 3600) return latest.value;
+      if (r.value.length > 1) return r.value[1].value;
       return latest.value;
     }
     return null;
   };
 
-  return {
-    txCount: getValue(0),
-    activeAddresses: getValue(1),
-    cumulativeAddresses: getValue(2),
-    avgTps: getValue(3),
-    maxTps: getValue(4),
-    gasUsed: getValue(5),
-    avgGasPrice: getValue(6),
-    cumulativeTxCount: getValue(7),
-  };
+  const out = {} as ChainMetricsBundle;
+  ALL_CHAIN_METRICS.forEach((m, i) => {
+    out[m] = valueAt(i);
+  });
+  return out;
+}
+
+// Network-wide daily staking rollups (validatorCount/Weight, delegatorCount/Weight).
+export async function fetchNetworkMetrics(): Promise<
+  Record<AvaCloudNetworkMetricName, number | null>
+> {
+  const names: AvaCloudNetworkMetricName[] = [
+    "validatorCount",
+    "validatorWeight",
+    "delegatorCount",
+    "delegatorWeight",
+  ];
+  const results = await Promise.allSettled(
+    names.map(async (m) => {
+      const res = await fetch(
+        `${BASE_URL}/networks/mainnet/metrics/${m}?pageSize=1`,
+        { signal: AbortSignal.timeout(15_000) },
+      );
+      if (!res.ok) throw new Error(`network metric ${m}: ${res.status}`);
+      const data: MetricsResponse = await res.json();
+      return data.results;
+    }),
+  );
+  const out = {} as Record<AvaCloudNetworkMetricName, number | null>;
+  names.forEach((m, i) => {
+    const r = results[i];
+    out[m] = r.status === "fulfilled" && r.value.length > 0 ? r.value[0].value : null;
+  });
+  return out;
 }

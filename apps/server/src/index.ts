@@ -10,6 +10,7 @@ import { overviewRoutes } from "./routes/overview.js";
 import { ingestRoutes } from "./routes/ingest.js";
 import { blockRoutes } from "./routes/block.js";
 import { validatorsRoutes } from "./routes/validators.js";
+import { protocolsRoutes } from "./routes/protocols.js";
 
 const db = createDb(process.env.DATABASE_URL!);
 
@@ -36,6 +37,7 @@ app.route("/api/overview", overviewRoutes(db));
 app.route("/api/ingest", ingestRoutes(db));
 app.route("/api/block-height", blockRoutes(db));
 app.route("/api/validators", validatorsRoutes(db));
+app.route("/api/protocols", protocolsRoutes(db));
 
 // Start server
 const port = parseInt(process.env.PORT ?? "8787");

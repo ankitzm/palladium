@@ -11,6 +11,25 @@ export async function fetchAllChainsTvl(): Promise<DeFiLlamaChain[]> {
   return res.json();
 }
 
+export interface DeFiLlamaProtocol {
+  name: string;
+  slug: string;
+  category?: string;
+  logo?: string;
+  url?: string;
+  chains?: string[];
+  chainTvls?: Record<string, number>;
+  change_1d?: number | null;
+}
+
+export async function fetchProtocols(): Promise<DeFiLlamaProtocol[]> {
+  const res = await fetch(`${DEFILLAMA_BASE}/protocols`, {
+    signal: AbortSignal.timeout(25_000),
+  });
+  if (!res.ok) throw new Error(`DeFiLlama /protocols error: ${res.status}`);
+  return res.json();
+}
+
 // Batch current USD prices for a set of CoinGecko ids. Free, no auth.
 // Returns a map of geckoId -> price (only ids DeFiLlama could resolve).
 export async function fetchPricesByGeckoId(

@@ -18,9 +18,12 @@ interface RichMeta {
   name?: string;
   description?: string | null;
   rpcUrl?: string | null;
+  wsUrl?: string | null;
   explorerUrl?: string | null;
   logoUrl?: string | null;
   tokenSymbol?: string | null;
+  glacierStatus?: string | null;
+  enabledFeatures?: string[] | null;
 }
 
 // Build lookup maps from the rich /v1/chains response, keyed by both the
@@ -34,9 +37,12 @@ function indexRichChains(rich: GlacierChain[]) {
       name: c.chainName || undefined,
       description: c.description || null,
       rpcUrl: c.rpcUrl || null,
+      wsUrl: c.wsUrl || null,
       explorerUrl: c.explorerUrl || null,
       logoUrl: c.chainLogoUri || c.networkToken?.logoUri || null,
       tokenSymbol: c.networkToken?.symbol || null,
+      glacierStatus: c.status || null,
+      enabledFeatures: c.enabledFeatures && c.enabledFeatures.length ? c.enabledFeatures : null,
     };
     if (c.platformChainId) byBlockchainId.set(c.platformChainId, meta);
     const evmId = c.chainId ? Number(c.chainId) : NaN;
@@ -112,8 +118,11 @@ export async function discoverChains(db: Database): Promise<number> {
       description: known?.description ?? richMeta?.description ?? null,
       evmChainId: gc.evmChainId ?? null,
       rpcUrl: known?.rpcUrl ?? richMeta?.rpcUrl ?? null,
+      wsUrl: richMeta?.wsUrl ?? null,
       explorerUrl: known?.explorerUrl ?? richMeta?.explorerUrl ?? null,
       websiteUrl: known?.websiteUrl ?? null,
+      glacierStatus: richMeta?.glacierStatus ?? null,
+      enabledFeatures: richMeta?.enabledFeatures ?? null,
       vmType,
       category: known?.category ?? null,
       tokenSymbol: known?.tokenSymbol ?? richMeta?.tokenSymbol ?? null,
@@ -146,8 +155,11 @@ export async function discoverChains(db: Database): Promise<number> {
               description: values.description,
               evmChainId: values.evmChainId,
               rpcUrl: values.rpcUrl,
+              wsUrl: values.wsUrl,
               explorerUrl: values.explorerUrl,
               websiteUrl: values.websiteUrl,
+              glacierStatus: values.glacierStatus,
+              enabledFeatures: values.enabledFeatures,
               vmType: values.vmType,
               category: values.category,
               tokenSymbol: values.tokenSymbol,

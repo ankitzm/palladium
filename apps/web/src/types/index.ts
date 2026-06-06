@@ -18,6 +18,11 @@ export interface ChainMetrics {
   tps: number | null;
   peakTps: number | null;
   avgGasConsumption: number | null;
+  feesPaid: number | null;
+  activeSenders: number | null;
+  contractsDeployed: number | null;
+  cumulativeTxCount: number | null;
+  cumulativeContracts: number | null;
 }
 
 export interface ChainValidator {
@@ -76,6 +81,32 @@ export interface OverviewData {
   asOfDate?: string | null;
   spotlightSlug?: string | null;
   spotlightChain?: Chain | null;
+  // Network-wide Primary-Network staking rollups (Bucket A).
+  network?: {
+    validatorCount: number | null;
+    validatorWeight: number | null;
+    delegatorCount: number | null;
+    delegatorWeight: number | null;
+  } | null;
+}
+
+// DeFi protocol on an Avalanche-family chain (Bucket B).
+export interface ProtocolRow {
+  slug: string;
+  name: string;
+  category: string | null;
+  logoUrl: string | null;
+  url: string | null;
+  chainKey: string;
+  chainSlug: string | null;
+  tvlUsd: number | null;
+  change1d: number | null;
+}
+
+export interface ProtocolsListResponse {
+  protocols: ProtocolRow[];
+  total: number;
+  limit: number;
 }
 
 export interface ChainsListResponse {

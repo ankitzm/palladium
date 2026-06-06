@@ -26,8 +26,10 @@ export interface GlacierChain {
   vmName?: string;
   explorerUrl?: string;
   rpcUrl?: string;
+  wsUrl?: string;
   isTestnet?: boolean;
   chainLogoUri?: string;
+  enabledFeatures?: string[];
   private?: boolean;
   networkToken?: {
     name?: string;
@@ -85,6 +87,22 @@ export interface GlacierPrimaryValidator {
 
 export interface GlacierPrimaryValidatorsResponse {
   validators: GlacierPrimaryValidator[];
+  nextPageToken?: string;
+}
+
+// Subnet from Glacier GET /v1/networks/{network}/subnets.
+export interface GlacierSubnet {
+  subnetId: string;
+  ownerAddresses?: string[];
+  threshold?: number;
+  locktime?: number;
+  isL1?: boolean;
+  createBlockTimestamp?: number;
+  blockchains?: { blockchainId: string }[];
+}
+
+export interface GlacierSubnetsResponse {
+  subnets: GlacierSubnet[];
   nextPageToken?: string;
 }
 
@@ -170,6 +188,11 @@ export interface ChainWithMetrics {
     tps: number | null;
     peakTps: number | null;
     avgGasConsumption: number | null;
+    feesPaid: number | null;
+    activeSenders: number | null;
+    contractsDeployed: number | null;
+    cumulativeTxCount: number | null;
+    cumulativeContracts: number | null;
   } | null;
 }
 

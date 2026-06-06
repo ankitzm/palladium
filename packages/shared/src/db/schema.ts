@@ -25,8 +25,11 @@ export const chains = pgTable(
     description: text("description"),
     evmChainId: bigint("evm_chain_id", { mode: "number" }),
     rpcUrl: text("rpc_url"),
+    wsUrl: text("ws_url"),
     explorerUrl: text("explorer_url"),
     websiteUrl: text("website_url"),
+    glacierStatus: text("glacier_status"),
+    enabledFeatures: text("enabled_features").array(),
     vmType: text("vm_type").notNull().default("unknown"),
     category: text("category"),
     tokenSymbol: text("token_symbol"),
@@ -80,6 +83,18 @@ export const chainMetrics = pgTable(
     tps: real("tps"),
     peakTps: real("peak_tps"),
     avgGasConsumption: real("avg_gas_consumption"),
+
+    // AvaCloud Metrics — extended activity (Bucket A)
+    feesPaid: real("fees_paid"),
+    activeSenders: integer("active_senders"),
+    contractsDeployed: integer("contracts_deployed"),
+    deployers: integer("deployers"),
+    cumulativeTxCount: bigint("cumulative_tx_count", { mode: "number" }),
+    cumulativeContracts: bigint("cumulative_contracts", { mode: "number" }),
+    cumulativeDeployers: bigint("cumulative_deployers", { mode: "number" }),
+    maxGasPrice: real("max_gas_price"),
+    avgGps: real("avg_gps"),
+    maxGps: real("max_gps"),
 
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -167,3 +182,65 @@ export const ingestionLog = pgTable("ingestion_log", {
   startedAt: timestamp("started_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
 });
+
+// ─── network_metrics ────────────────────────────────────────────────
+// Avalanche-network-wide daily rollups (not per-chain). From the AvaCloud
+// Metrics API /networks/mainnet/metrics/* — primary-network staking totals.
+export const networkMetrics = pgTable(
+  "network_metrics",
+  {
+    id: serial("id").primaryKey(),
+    date: date("date").notNull().unique(),
+    validatorCount: integer("validator_count"),
+    validatorWeight: bigint("validator_weight", { mode: "number" }),
+    delegatorCount: integer("delegator_count"),
+    delegatorWeight: bigint("delegator_weight", { mode: "number" }),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("network_metrics_date_idx").on(table.date)],
+);
+
+// ─── subnets ────────────────────────────────────────────────────────
+// Subnet ownership + L1-conversion status from Glacier /networks/mainnet/subnets.
+export const subnets = pgTable(
+  "subnets",
+  {
+    subnetId: text("subnet_id").primaryKey(),
+    ownerAddresses: text("owner_addresses").array(),
+    threshold: integer("threshold"),
+    locktime: bigint("locktime", { mode: "number" }),
+    isL1: boolean("is_l1").notNull().default(false),
+    blockchainCount: integer("blockchain_count"),
+    createBlockTimestamp: bigint("create_block_timestamp", { mode: "number" }),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("subnets_is_l1_idx").on(table.isL1)],
+);
+
+// ─── protocols ──────────────────────────────────────────────────────
+// DeFi protocols with Avalanche-family TVL, from DeFiLlama /protocols. One row
+// per (protocol, chainKey) so an L1 (e.g. Beam/DFK/Dexalot) or the C-Chain
+// ("Avalanche") can list its protocols. Refreshed daily; pruned each run.
+export const protocols = pgTable(
+  "protocols",
+  {
+    id: serial("id").primaryKey(),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    category: text("category"),
+    logoUrl: text("logo_url"),
+    url: text("url"),
+    // DeFiLlama chain key, e.g. "Avalanche", "Beam", "DFK", "Dexalot".
+    chainKey: text("chain_key").notNull(),
+    // Our chain slug, when we can map chainKey → a chain we index.
+    chainSlug: text("chain_slug"),
+    tvlUsd: real("tvl_usd"),
+    change1d: real("change_1d"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("protocols_slug_chain_idx").on(table.slug, table.chainKey),
+    index("protocols_chain_key_idx").on(table.chainKey),
+    index("protocols_chain_slug_idx").on(table.chainSlug),
+  ],
+);

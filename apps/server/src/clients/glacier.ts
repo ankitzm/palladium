@@ -7,6 +7,8 @@ import type {
   GlacierL1ValidatorsResponse,
   GlacierPrimaryValidator,
   GlacierPrimaryValidatorsResponse,
+  GlacierSubnet,
+  GlacierSubnetsResponse,
 } from "@palladium/shared/types";
 
 // Glacier (AvaCloud Data API). Free, no auth required for reads. ~6000 req/min
@@ -69,6 +71,26 @@ export async function fetchL1Validators(
     if (pageToken) url.searchParams.set("pageToken", pageToken);
     const data = await getJson<GlacierL1ValidatorsResponse>(url.toString());
     all.push(...(data.validators ?? []));
+    pageToken = data.nextPageToken;
+    pages++;
+  } while (pageToken && pages < maxPages);
+  return all;
+}
+
+// ─── Subnets: ownership, threshold, L1-conversion status ─────────────
+export async function fetchSubnets(
+  opts: { maxPages?: number } = {},
+): Promise<GlacierSubnet[]> {
+  const maxPages = opts.maxPages ?? 50;
+  const all: GlacierSubnet[] = [];
+  let pageToken: string | undefined;
+  let pages = 0;
+  do {
+    const url = new URL(`${GLACIER}/networks/${NETWORK}/subnets`);
+    url.searchParams.set("pageSize", "100");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+    const data = await getJson<GlacierSubnetsResponse>(url.toString());
+    all.push(...(data.subnets ?? []));
     pageToken = data.nextPageToken;
     pages++;
   } while (pageToken && pages < maxPages);
