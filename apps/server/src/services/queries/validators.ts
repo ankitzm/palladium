@@ -5,6 +5,7 @@ import type { Database } from "@palladium/shared/db";
 export interface ValidatorRow {
   nodeId: string;
   weight: number | null;
+  remainingBalance: number | null;
   uptimePercent: number | null;
   isConnected: boolean | null;
   startTime: number | null;
@@ -41,6 +42,7 @@ export async function listValidators(
     .select({
       nodeId: chainValidators.nodeId,
       weight: chainValidators.weight,
+      remainingBalance: chainValidators.remainingBalance,
       uptimePercent: chainValidators.uptimePercent,
       isConnected: chainValidators.isConnected,
       startTime: chainValidators.startTime,
@@ -65,6 +67,7 @@ export async function listValidators(
   const validators: ValidatorRow[] = rows.map((r) => ({
     nodeId: r.nodeId,
     weight: r.weight,
+    remainingBalance: r.remainingBalance,
     uptimePercent: r.uptimePercent,
     isConnected: r.isConnected,
     startTime: r.startTime,

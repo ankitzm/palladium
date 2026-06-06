@@ -57,7 +57,7 @@ export function OverviewView() {
 
       <StatBand
         items={[
-          { value: formatUsd(data.totalTvlUsd), label: "Total TVL", change: data.tvlChangePct },
+          { value: formatNumber(data.totalChains), label: "L1s indexed" },
           {
             value: formatNumber(data.totalValidators ?? null),
             label: "Validators",
@@ -68,7 +68,9 @@ export function OverviewView() {
             label: "24h txns",
             change: data.txnsChangePct,
           },
-          { value: formatNumber(data.totalChains), label: "L1s indexed" },
+          // TVL last: per-L1 TVL is sparse on DeFiLlama, so this often reads "—".
+          // Leading with always-populated metrics avoids a "dead $0" headline.
+          { value: formatUsd(data.totalTvlUsd), label: "Total TVL", change: data.tvlChangePct },
         ]}
       />
 

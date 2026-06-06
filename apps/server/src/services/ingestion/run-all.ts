@@ -1,6 +1,7 @@
 import { ingestionLog } from "@palladium/shared/db/schema";
 import { discoverChains } from "./discover-chains.js";
-import { fetchValidators } from "./fetch-validators.js";
+import { fetchL1Validators_ingest } from "./fetch-l1-validators.js";
+import { fetchPrimaryValidators_ingest } from "./fetch-primary-validators.js";
 import { fetchTvl } from "./fetch-tvl.js";
 import { fetchEvmMetrics } from "./fetch-evm-metrics.js";
 import { fetchAvaCloudMetrics } from "./fetch-avacloud-metrics.js";
@@ -60,12 +61,15 @@ export async function runAllIngestion(db: Database): Promise<JobResult[]> {
 
   const results: JobResult[] = [];
 
-  // Sequential: each step depends on the previous
+  // Sequential: discovery first (rpc/logo/token enrichment), then metrics.
   results.push(await runJob(db, "discover-chains", discoverChains));
-  results.push(await runJob(db, "fetch-validators", fetchValidators));
-  results.push(await runJob(db, "fetch-tvl", fetchTvl));
-  results.push(await runJob(db, "fetch-evm-metrics", fetchEvmMetrics));
+  results.push(await runJob(db, "l1-validators", fetchL1Validators_ingest));
+  results.push(await runJob(db, "primary-validators", fetchPrimaryValidators_ingest));
+  // AvaCloud txCount is authoritative (actualDailyTxs); EVM RPC sampling fills
+  // block time / gas / estimated txs as a fallback for chains AvaCloud lacks.
   results.push(await runJob(db, "fetch-avacloud-metrics", fetchAvaCloudMetrics));
+  results.push(await runJob(db, "fetch-evm-metrics", fetchEvmMetrics));
+  results.push(await runJob(db, "fetch-tvl", fetchTvl));
 
   const totalMs = Date.now() - overallStart;
   console.log(`\n✅ Full ingestion completed in ${totalMs}ms`);

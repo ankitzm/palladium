@@ -1,47 +1,43 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import type { ValidatorRow } from "@/types";
-import { formatCompact, shortId } from "@/lib/format";
-import { ChainIcon } from "@/components/ui/ChainIcon";
+import type { PrimaryValidatorRow } from "@/types";
+import { shortId } from "@/lib/format";
 
-type SortField = "weight" | "balance" | "chain";
+type SortField = "stake" | "uptime" | "delegators";
 const PAGE_SIZE = 25;
 
-// AVAX-denominated balances arrive in nAVAX (1e9). Render compactly.
 function formatAvax(nAvax: number | null): string {
   if (nAvax == null) return "—";
   const avax = nAvax / 1e9;
-  if (avax >= 1e6) return `${(avax / 1e6).toFixed(1)}M`;
+  if (avax >= 1e6) return `${(avax / 1e6).toFixed(2)}M`;
   if (avax >= 1e3) return `${(avax / 1e3).toFixed(1)}K`;
-  if (avax >= 1) return avax.toFixed(1);
-  return avax.toFixed(3);
+  return avax.toFixed(0);
 }
 
-function sortValue(v: ValidatorRow, field: SortField): number {
+function sortValue(v: PrimaryValidatorRow, field: SortField): number {
   switch (field) {
-    case "weight":
-      return v.weight ?? 0;
-    case "balance":
-      return v.remainingBalance ?? 0;
+    case "uptime":
+      return v.uptimePercent ?? 0;
+    case "delegators":
+      return v.delegatorCount ?? 0;
     default:
-      return 0;
+      return v.amountStaked ?? 0;
   }
 }
 
-export function ValidatorTable({ validators }: { validators: ValidatorRow[] }) {
-  const [sortField, setSortField] = useState<SortField>("weight");
+export function PrimaryValidatorTable({
+  validators,
+}: {
+  validators: PrimaryValidatorRow[];
+}) {
+  const [sortField, setSortField] = useState<SortField>("stake");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
 
   const sorted = useMemo(() => {
     const r = [...validators];
     r.sort((a, b) => {
-      if (sortField === "chain") {
-        const cmp = a.chain.name.localeCompare(b.chain.name);
-        return order === "asc" ? cmp : -cmp;
-      }
       const d = sortValue(a, sortField) - sortValue(b, sortField);
       return order === "asc" ? d : -d;
     });
@@ -53,11 +49,10 @@ export function ValidatorTable({ validators }: { validators: ValidatorRow[] }) {
   const rows = sorted.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
 
   function toggleSort(f: SortField) {
-    if (sortField === f) {
-      setOrder((o) => (o === "asc" ? "desc" : "asc"));
-    } else {
+    if (sortField === f) setOrder((o) => (o === "asc" ? "desc" : "asc"));
+    else {
       setSortField(f);
-      setOrder(f === "chain" ? "asc" : "desc");
+      setOrder("desc");
     }
     setPage(0);
   }
@@ -68,58 +63,72 @@ export function ValidatorTable({ validators }: { validators: ValidatorRow[] }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse font-mono text-xs">
+        <table className="w-full min-w-[680px] border-collapse font-mono text-xs">
           <thead>
             <tr className="text-faint">
               <th className="px-3 py-2 text-left font-normal">#</th>
               <th className="px-3 py-2 text-left font-normal">NODE ID</th>
-              <Th onClick={() => toggleSort("chain")} className="text-left">
-                CHAIN{arrow("chain")}
+              <Th onClick={() => toggleSort("stake")}>STAKE{arrow("stake")}</Th>
+              <Th onClick={() => toggleSort("uptime")}>UPTIME{arrow("uptime")}</Th>
+              <Th onClick={() => toggleSort("delegators")}>
+                DELEG{arrow("delegators")}
               </Th>
-              <Th onClick={() => toggleSort("weight")}>WEIGHT{arrow("weight")}</Th>
-              <Th onClick={() => toggleSort("balance")}>
-                BALANCE{arrow("balance")}
-              </Th>
-              <th className="px-3 py-2 text-left font-normal">STATUS</th>
+              <th className="px-3 py-2 text-left font-normal">GEO</th>
+              <th className="px-3 py-2 text-left font-normal">VERSION</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((v, i) => (
               <tr
-                key={`${v.chain.slug}-${v.nodeId}`}
+                key={v.nodeId}
                 className={`border-t border-row-line ${i % 2 === 1 ? "bg-surface-2/40" : ""}`}
               >
                 <td className="px-3 py-2.5 text-left text-faint">
                   {String(safePage * PAGE_SIZE + i + 1).padStart(2, "0")}
                 </td>
-                <td className="px-3 py-2.5 text-left text-line">{shortId(v.nodeId, 14, 4)}</td>
-                <td className="px-3 py-2.5 text-left">
-                  <Link
-                    href={`/chains/${v.chain.slug}`}
-                    className="flex items-center gap-2 text-foreground hover:text-avax-red-text"
-                  >
-                    <ChainIcon name={v.chain.name} featured={v.chain.isFeatured} />
-                    {v.chain.name}
-                  </Link>
+                <td className="px-3 py-2.5 text-left text-line">
+                  {shortId(v.nodeId, 14, 4)}
                 </td>
                 <td className="px-3 py-2.5 text-right text-line">
-                  {v.weight != null ? formatCompact(v.weight) : <span className="text-faint">—</span>}
+                  {formatAvax(v.amountStaked)}
+                  {v.amountStaked != null && <span className="text-faint"> A</span>}
                 </td>
-                <td className="px-3 py-2.5 text-right text-line">
-                  {formatAvax(v.remainingBalance)}
-                  {v.remainingBalance != null && (
-                    <span className="text-faint"> AVAX</span>
+                <td className="px-3 py-2.5 text-right">
+                  {v.uptimePercent != null ? (
+                    <span
+                      className={
+                        v.uptimePercent >= 95 ? "text-pos-text" : "text-warn"
+                      }
+                    >
+                      {v.uptimePercent.toFixed(1)}%
+                    </span>
+                  ) : (
+                    <span className="text-faint">—</span>
                   )}
                 </td>
-                <td className="px-3 py-2.5 text-left">
-                  <span className="text-pos-text">● active</span>
+                <td className="px-3 py-2.5 text-right">
+                  {v.delegatorCount != null ? (
+                    v.delegatorCount
+                  ) : (
+                    <span className="text-faint">—</span>
+                  )}
+                </td>
+                <td className="px-3 py-2.5 text-left text-dim">
+                  {v.countryCode ? (
+                    <span title={v.country ?? undefined}>{v.countryCode}</span>
+                  ) : (
+                    <span className="text-faint">—</span>
+                  )}
+                </td>
+                <td className="px-3 py-2.5 text-left text-dim">
+                  {v.avalanchegoVersion ?? <span className="text-faint">—</span>}
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-12 text-center text-muted">
-                  No validator data available yet.
+                <td colSpan={7} className="px-3 py-12 text-center text-muted">
+                  No primary-network validator data yet.
                 </td>
               </tr>
             )}
@@ -130,8 +139,9 @@ export function ValidatorTable({ validators }: { validators: ValidatorRow[] }) {
       {sorted.length > PAGE_SIZE && (
         <div className="flex items-center justify-between border-t border-border pt-3 font-mono text-[11px] text-faint">
           <span>
-            {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, sorted.length)} of{" "}
-            {sorted.length} · page {safePage + 1} of {pageCount}
+            {safePage * PAGE_SIZE + 1}–
+            {Math.min((safePage + 1) * PAGE_SIZE, sorted.length)} of {sorted.length}{" "}
+            · page {safePage + 1} of {pageCount}
           </span>
           <div className="flex gap-1.5">
             <button
@@ -159,17 +169,15 @@ export function ValidatorTable({ validators }: { validators: ValidatorRow[] }) {
 
 function Th({
   children,
-  className,
   onClick,
 }: {
   children?: React.ReactNode;
-  className?: string;
   onClick?: () => void;
 }) {
   return (
     <th
       onClick={onClick}
-      className={`px-3 py-2 font-normal ${className ?? "text-right"} ${
+      className={`px-3 py-2 text-right font-normal ${
         onClick ? "cursor-pointer select-none hover:text-foreground" : ""
       }`}
     >

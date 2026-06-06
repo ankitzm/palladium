@@ -62,8 +62,9 @@ export const chainMetrics = pgTable(
     validatorCount: integer("validator_count"),
     totalStakeWeight: bigint("total_stake_weight", { mode: "number" }),
 
-    // TVL (from DeFiLlama)
+    // TVL + native token price (from DeFiLlama)
     tvlUsd: real("tvl_usd"),
+    nativeTokenPriceUsd: real("native_token_price_usd"),
 
     // EVM RPC sampled data (legacy/fallback)
     latestBlockNumber: bigint("latest_block_number", { mode: "number" }),
@@ -98,7 +99,12 @@ export const chainValidators = pgTable(
       .notNull()
       .references(() => chains.id, { onDelete: "cascade" }),
     nodeId: text("node_id").notNull(),
+    // Post-Etna/ACP-77 L1 validator identity + remaining continuous-fee balance.
+    validationId: text("validation_id"),
+    remainingBalance: bigint("remaining_balance", { mode: "number" }),
     weight: bigint("weight", { mode: "number" }),
+    // The following are populated only for Primary-Network-style records; L1
+    // (subnet) validators do not report uptime/connection/delegation to P-Chain.
     isConnected: boolean("is_connected"),
     uptimePercent: real("uptime_percent"),
     startTime: bigint("start_time", { mode: "number" }),
@@ -114,6 +120,39 @@ export const chainValidators = pgTable(
       table.nodeId,
     ),
     index("chain_validators_chain_idx").on(table.chainId),
+  ],
+);
+
+// ─── primary_validators ─────────────────────────────────────────────
+// Avalanche Primary-Network (AVAX) validators — network-wide, NOT per-L1.
+// Sourced from Glacier GET /v1/networks/mainnet/validators, which (unlike L1
+// validators) carries uptime, delegation, and geolocation. Kept in its own
+// table because its shape and meaning differ from per-L1 chain_validators.
+export const primaryValidators = pgTable(
+  "primary_validators",
+  {
+    id: serial("id").primaryKey(),
+    nodeId: text("node_id").notNull().unique(),
+    txHash: text("tx_hash"),
+    amountStaked: bigint("amount_staked", { mode: "number" }),
+    amountDelegated: bigint("amount_delegated", { mode: "number" }),
+    delegationFee: real("delegation_fee"),
+    delegatorCount: integer("delegator_count"),
+    uptimePercent: real("uptime_percent"),
+    validatorHealth: real("validator_health"),
+    stakePercentage: real("stake_percentage"),
+    potentialRewards: bigint("potential_rewards", { mode: "number" }),
+    startTimestamp: bigint("start_timestamp", { mode: "number" }),
+    endTimestamp: bigint("end_timestamp", { mode: "number" }),
+    validationStatus: text("validation_status"),
+    country: text("country"),
+    countryCode: text("country_code"),
+    avalanchegoVersion: text("avalanchego_version"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("primary_validators_node_idx").on(table.nodeId),
+    index("primary_validators_weight_idx").on(table.amountStaked),
   ],
 );
 

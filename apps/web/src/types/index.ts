@@ -6,6 +6,7 @@ export interface ChainMetrics {
   validatorCount: number | null;
   totalStakeWeight: number | null;
   tvlUsd: number | null;
+  nativeTokenPriceUsd: number | null;
   latestBlockNumber: number | null;
   recentTxCount: number | null;
   avgGasPrice: number | null;
@@ -90,10 +91,13 @@ export interface MetricsHistoryResponse {
   metrics: ChainMetrics[];
 }
 
-// Phase C: cross-chain validator listing.
+// Per-L1 (subnet) validator listing. L1 validators report weight + remaining
+// continuous-fee balance; they do NOT report uptime/delegators (only Primary-
+// Network validators do — see PrimaryValidatorRow).
 export interface ValidatorRow {
   nodeId: string;
   weight: number | null;
+  remainingBalance: number | null;
   uptimePercent: number | null;
   isConnected: boolean | null;
   startTime: number | null;
@@ -107,6 +111,30 @@ export interface ValidatorRow {
 
 export interface ValidatorsListResponse {
   validators: ValidatorRow[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+// Primary-Network (AVAX) validator listing — the network-wide staking set, with
+// uptime, delegation, and geolocation.
+export interface PrimaryValidatorRow {
+  nodeId: string;
+  amountStaked: number | null;
+  amountDelegated: number | null;
+  delegatorCount: number | null;
+  delegationFee: number | null;
+  uptimePercent: number | null;
+  validatorHealth: number | null;
+  stakePercentage: number | null;
+  validationStatus: string | null;
+  country: string | null;
+  countryCode: string | null;
+  avalanchegoVersion: string | null;
+}
+
+export interface PrimaryValidatorsListResponse {
+  validators: PrimaryValidatorRow[];
   total: number;
   limit: number;
   offset: number;
