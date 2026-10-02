@@ -68,7 +68,7 @@ function ChainRow({ chain, metric }: { chain: Chain; metric: "tvl" | "txs" }) {
         ) : (
           <>
             <p className="font-semibold text-foreground">
-              {formatNumber(m?.estimatedDailyTxs)}
+              {formatNumber(m?.actualDailyTxs ?? m?.estimatedDailyTxs)}
             </p>
             <p className="text-xs text-muted">daily txs</p>
           </>
@@ -138,7 +138,7 @@ export default async function OverviewPage() {
           </div>
           <div className="divide-y divide-border/50">
             {data.topChainsByTxs
-              .filter((c) => (c.latestMetrics?.estimatedDailyTxs ?? 0) > 0)
+              .filter((c) => ((c.latestMetrics?.actualDailyTxs ?? c.latestMetrics?.estimatedDailyTxs ?? 0) > 0))
               .slice(0, 8)
               .map((chain) => (
                 <ChainRow key={chain.id} chain={chain} metric="txs" />

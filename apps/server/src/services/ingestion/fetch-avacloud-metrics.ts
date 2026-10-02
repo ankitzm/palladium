@@ -14,7 +14,7 @@ export async function fetchAvaCloudMetrics(db: Database): Promise<number> {
 
   // Get active EVM chains from our DB that have evmChainId
   const activeChains = await db
-    .select({ id: chains.id, evmChainId: chains.evmChainId })
+    .select({ id: chains.id, evmChainId: chains.evmChainId, name: chains.name })
     .from(chains)
     .where(
       and(
@@ -38,6 +38,16 @@ export async function fetchAvaCloudMetrics(db: Database): Promise<number> {
     const results = await Promise.allSettled(
       batch.map(async (chain) => {
         const data = await fetchAllChainMetrics(chain.evmChainId!);
+
+        // Log what we got for this chain
+        const stats: string[] = [];
+        if (data.txCount !== null) stats.push(`txs=${data.txCount}`);
+        if (data.activeAddresses !== null) stats.push(`addrs=${data.activeAddresses}`);
+        if (data.avgTps !== null) stats.push(`tps=${data.avgTps.toFixed(2)}`);
+        if (data.cumulativeTxCount !== null) stats.push(`cumTxs=${data.cumulativeTxCount}`);
+        console.log(
+          `[fetch-avacloud] ✓ ${chain.name} (${chain.evmChainId}): ${stats.join(", ") || "no data"}`,
+        );
 
         await db
           .insert(chainMetrics)
@@ -74,7 +84,7 @@ export async function fetchAvaCloudMetrics(db: Database): Promise<number> {
     const failed = results.filter((r) => r.status === "rejected");
     for (const f of failed) {
       if (f.status === "rejected") {
-        console.warn(`[fetch-avacloud] Failed: ${f.reason}`);
+        console.warn(`[fetch-avacloud] ✗ Failed: ${f.reason}`);
       }
     }
   }

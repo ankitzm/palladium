@@ -23,6 +23,8 @@ import {
   fetchBlockNumber,
   fetchBlockByNumber,
 } from "../apps/server/src/clients/evm-rpc.js";
+import { fetchSupportedChains, fetchChainMetric } from "../apps/server/src/clients/avacloud.js";
+import type { AvaCloudMetricName } from "../apps/server/src/clients/avacloud.js";
 
 // ─── Parse CLI args ─────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -126,7 +128,11 @@ async function main() {
   }
   console.log(`  DeFiLlama: ${llamaChains.length} chains`);
 
-  // EVM: pre-fetch current block data once
+  // EVM: pre-fetch current block data with multi-block sampling
+  const SAMPLE_POINTS = 50;
+  const MAX_LOOKBACK_BLOCKS = 50000;
+  const MIN_LOOKBACK_BLOCKS = 100;
+
   const evmData = new Map<
     number,
     {
@@ -145,25 +151,73 @@ async function main() {
       batch.map(async (chain) => {
         const rpcUrl = chain.rpcUrl!;
         const latestNum = await fetchBlockNumber(rpcUrl);
-        const olderNum = Math.max(0, latestNum - 10);
-        const [latestBlock, olderBlock] = await Promise.all([
-          fetchBlockByNumber(rpcUrl, latestNum),
-          fetchBlockByNumber(rpcUrl, olderNum),
-        ]);
+        if (latestNum <= 0) return;
+
+        const latestBlock = await fetchBlockByNumber(rpcUrl, latestNum);
         const latestTs = parseInt(latestBlock.timestamp, 16);
-        const olderTs = parseInt(olderBlock.timestamp, 16);
-        const blockDiff = latestNum - olderNum;
-        const avgBlockTime = blockDiff > 0 ? (latestTs - olderTs) / blockDiff : 0;
-        const recentTxCount = latestBlock.transactions.length;
+
+        // Estimate block time from a small probe
+        const probeBlockNum = Math.max(0, latestNum - 100);
+        const probeBlock = await fetchBlockByNumber(rpcUrl, probeBlockNum);
+        const probeTs = parseInt(probeBlock.timestamp, 16);
+        const probeDiff = latestNum - probeBlockNum;
+        const estimatedBlockTime = probeDiff > 0 ? (latestTs - probeTs) / probeDiff : 2;
+
+        // Calculate lookback range
+        const blocksIn24h = estimatedBlockTime > 0 ? Math.round(86400 / estimatedBlockTime) : 43200;
+        const lookback = Math.max(MIN_LOOKBACK_BLOCKS, Math.min(MAX_LOOKBACK_BLOCKS, blocksIn24h, latestNum));
+        const oldestBlockNum = Math.max(0, latestNum - lookback);
+
+        const oldestBlock = await fetchBlockByNumber(rpcUrl, oldestBlockNum);
+        const oldestTs = parseInt(oldestBlock.timestamp, 16);
+        const timeSpanSeconds = latestTs - oldestTs;
+        if (timeSpanSeconds <= 0) return;
+
+        const actualBlockDiff = latestNum - oldestBlockNum;
+        const avgBlockTime = actualBlockDiff > 0 ? timeSpanSeconds / actualBlockDiff : estimatedBlockTime;
+
+        // Sample blocks evenly across the range
+        const sampleBlockNums: number[] = [];
+        const step = Math.max(1, Math.floor(lookback / SAMPLE_POINTS));
+        for (let j = 0; j < SAMPLE_POINTS && (oldestBlockNum + j * step) <= latestNum; j++) {
+          sampleBlockNums.push(oldestBlockNum + j * step);
+        }
+        if (sampleBlockNums[sampleBlockNums.length - 1] !== latestNum) {
+          sampleBlockNums.push(latestNum);
+        }
+
+        // Fetch sample blocks
+        const txCounts: number[] = [];
+        const gasPrices: number[] = [];
+        const BLOCK_BATCH = 10;
+        for (let j = 0; j < sampleBlockNums.length; j += BLOCK_BATCH) {
+          const batchNums = sampleBlockNums.slice(j, j + BLOCK_BATCH);
+          const blocks = await Promise.allSettled(
+            batchNums.map((bn) => fetchBlockByNumber(rpcUrl, bn)),
+          );
+          for (const result of blocks) {
+            if (result.status === "fulfilled") {
+              txCounts.push(result.value.transactions.length);
+              if (result.value.baseFeePerGas) {
+                gasPrices.push(parseInt(result.value.baseFeePerGas, 16) / 1e9);
+              }
+            }
+          }
+        }
+
+        if (txCounts.length === 0) return;
+
+        const totalSampledTxs = txCounts.reduce((sum, n) => sum + n, 0);
+        const avgTxsPerBlock = totalSampledTxs / txCounts.length;
         const blocksPerDay = avgBlockTime > 0 ? 86400 / avgBlockTime : 0;
-        const estimatedDailyTxs = Math.round(recentTxCount * blocksPerDay);
-        const avgGasPrice = latestBlock.baseFeePerGas
-          ? parseInt(latestBlock.baseFeePerGas, 16) / 1e9
+        const estimatedDailyTxs = Math.round(avgTxsPerBlock * blocksPerDay);
+        const avgGasPrice = gasPrices.length > 0
+          ? gasPrices.reduce((sum, g) => sum + g, 0) / gasPrices.length
           : null;
 
         evmData.set(chain.id, {
           latestBlockNumber: latestNum,
-          recentTxCount,
+          recentTxCount: latestBlock.transactions.length,
           avgGasPrice,
           avgBlockTime: avgBlockTime > 0 ? avgBlockTime : null,
           estimatedDailyTxs: estimatedDailyTxs > 0 ? estimatedDailyTxs : null,
@@ -171,7 +225,76 @@ async function main() {
       }),
     );
   }
-  console.log(`  EVM: fetched for ${evmData.size} chains\n`);
+  console.log(`  EVM: fetched for ${evmData.size} chains (multi-block sampling)\n`);
+
+  // ── Step 4: Fetch AvaCloud historical metrics ─────────────────────
+  console.log("Fetching AvaCloud historical metrics...");
+  const supportedChains_ = await fetchSupportedChains();
+  const supportedEvmIds = new Set(supportedChains_.map((c) => c.evmChainId));
+  console.log(`  ${supportedEvmIds.size} mainnet chains supported by AvaCloud`);
+
+  // For each eligible chain, fetch N days of historical data for key metrics
+  const avaMetricNames: AvaCloudMetricName[] = [
+    "txCount", "activeAddresses", "cumulativeAddresses",
+    "avgTps", "maxTps", "gasUsed", "avgGasPrice",
+  ];
+
+  // Map: chainId -> dateStr -> { txCount, activeAddresses, ... }
+  type AvaDay = {
+    txCount: number | null;
+    activeAddresses: number | null;
+    cumulativeAddresses: number | null;
+    avgTps: number | null;
+    maxTps: number | null;
+    gasUsed: number | null;
+    avgGasPrice: number | null;
+  };
+  const avaHistorical = new Map<number, Map<string, AvaDay>>();
+
+  const eligibleAva = targetChains.filter(
+    (c) => c.evmChainId !== null && c.isEvm && supportedEvmIds.has(c.evmChainId!),
+  );
+
+  for (let i = 0; i < eligibleAva.length; i += 5) {
+    const batch = eligibleAva.slice(i, i + 5);
+    await Promise.allSettled(
+      batch.map(async (chain) => {
+        const evmId = chain.evmChainId!;
+        const dayMap = new Map<string, AvaDay>();
+
+        // Fetch each metric with enough pageSize for our date range
+        const results = await Promise.allSettled(
+          avaMetricNames.map((m) =>
+            fetchChainMetric(evmId, m, { timeInterval: "day", pageSize: dates.length + 2 }),
+          ),
+        );
+
+        // Build a timestamp->dateStr lookup
+        for (let mIdx = 0; mIdx < avaMetricNames.length; mIdx++) {
+          const r = results[mIdx];
+          if (r.status !== "fulfilled") continue;
+          for (const dp of r.value) {
+            const d = new Date(dp.timestamp * 1000).toISOString().split("T")[0];
+            if (!dayMap.has(d)) {
+              dayMap.set(d, {
+                txCount: null, activeAddresses: null, cumulativeAddresses: null,
+                avgTps: null, maxTps: null, gasUsed: null, avgGasPrice: null,
+              });
+            }
+            const entry = dayMap.get(d)!;
+            (entry as any)[avaMetricNames[mIdx]] = dp.value;
+          }
+        }
+
+        avaHistorical.set(chain.id, dayMap);
+        const daysWithData = [...dayMap.values()].filter((d) => d.txCount !== null).length;
+        if (daysWithData > 0) {
+          console.log(`  ✓ ${chain.name} (${evmId}): ${daysWithData} days of AvaCloud data`);
+        }
+      }),
+    );
+  }
+  console.log(`  AvaCloud: fetched historical data for ${avaHistorical.size} chains\n`);
 
   // ── Insert for each date ──────────────────────────────────────────
   for (const date of dates) {
@@ -246,6 +369,39 @@ async function main() {
               updatedAt: new Date(),
             },
           });
+      }
+
+      // AvaCloud historical (overwrites EVM estimates with accurate data)
+      const avaChainData = avaHistorical.get(chain.id);
+      if (avaChainData) {
+        const avaDay = avaChainData.get(date);
+        if (avaDay && (avaDay.txCount !== null || avaDay.activeAddresses !== null)) {
+          await db
+            .insert(chainMetrics)
+            .values({
+              chainId: chain.id,
+              date,
+              actualDailyTxs: avaDay.txCount,
+              activeAddresses: avaDay.activeAddresses,
+              cumulativeAddresses: avaDay.cumulativeAddresses,
+              tps: avaDay.avgTps,
+              peakTps: avaDay.maxTps,
+              avgGasConsumption: avaDay.gasUsed,
+              updatedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: [chainMetrics.chainId, chainMetrics.date],
+              set: {
+                actualDailyTxs: avaDay.txCount,
+                activeAddresses: avaDay.activeAddresses,
+                cumulativeAddresses: avaDay.cumulativeAddresses,
+                tps: avaDay.avgTps,
+                peakTps: avaDay.maxTps,
+                avgGasConsumption: avaDay.gasUsed,
+                updatedAt: new Date(),
+              },
+            });
+        }
       }
     }
 

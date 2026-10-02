@@ -1,6 +1,6 @@
 import type { EvmBlock } from "@palladium/shared/types";
 
-const RPC_TIMEOUT_MS = 5000;
+const RPC_TIMEOUT_MS = 10000;
 
 async function callEvmRpc<T>(
   rpcUrl: string,

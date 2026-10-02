@@ -15,7 +15,20 @@ export async function discoverChains(db: Database): Promise<number> {
   const glacierChains = await fetchAllBlockchains();
   console.log(`[discover-chains] Found ${glacierChains.length} blockchains`);
 
-  const usedSlugs = new Set<string>();
+  // Pre-load existing slugs from DB to avoid unique constraint violations
+  const existingRows = await db
+    .select({ slug: chains.slug })
+    .from(chains);
+  const usedSlugs = new Set<string>(existingRows.map((r) => r.slug));
+
+  // Also track blockchainId -> existing slug mapping for upserts
+  const existingChainRows = await db
+    .select({ blockchainId: chains.blockchainId, slug: chains.slug })
+    .from(chains);
+  const existingSlugByBlockchainId = new Map<string, string>(
+    existingChainRows.map((r) => [r.blockchainId, r.slug]),
+  );
+
   const allValues: (typeof chains.$inferInsert)[] = [];
 
   for (const gc of glacierChains) {
@@ -31,9 +44,18 @@ export async function discoverChains(db: Database): Promise<number> {
     const vmType = isSubnetEvm ? "subnet-evm" : gc.evmChainId ? "evm-custom" : "custom";
 
     const chainName = known?.name ?? (gc.blockchainName || `chain-${gc.blockchainId.slice(0, 8)}`);
-    const baseSlug = slugify(chainName);
-    const slug = dedupeSlug(baseSlug, usedSlugs);
-    usedSlugs.add(slug);
+
+    // If this chain already exists in DB, reuse its slug
+    // Otherwise generate a new deduped slug
+    let slug: string;
+    const existingSlug = existingSlugByBlockchainId.get(gc.blockchainId);
+    if (existingSlug) {
+      slug = existingSlug;
+    } else {
+      const baseSlug = slugify(chainName);
+      slug = dedupeSlug(baseSlug, usedSlugs);
+      usedSlugs.add(slug);
+    }
 
     allValues.push({
       blockchainId: gc.blockchainId,
